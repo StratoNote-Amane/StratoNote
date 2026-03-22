@@ -1,0 +1,3498 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,minimum-scale=1,maximum-scale=1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="StratoNote">
+<meta name="theme-color" content="#76c0ea">
+<link rel="apple-touch-icon" id="pwa-icon" href="">
+<script id="pwa-icon-gen">
+(function(){
+  var c=document.createElement('canvas');
+  var S=180;c.width=S;c.height=S;
+  var ctx=c.getContext('2d');
+  var cx=90,cy=90;
+
+  // Background
+  var r=36;
+  ctx.fillStyle='#0a1628';
+  ctx.beginPath();
+  ctx.moveTo(r,0);ctx.lineTo(S-r,0);ctx.arcTo(S,0,S,r,r);
+  ctx.lineTo(S,S-r);ctx.arcTo(S,S,S-r,S,r);
+  ctx.lineTo(r,S);ctx.arcTo(0,S,0,S-r,r);
+  ctx.lineTo(0,r);ctx.arcTo(0,0,r,0,r);
+  ctx.closePath();ctx.fill();
+
+  // Orbit rings (3 concentric, dim)
+  [62,44,26].forEach(function(rad){
+    ctx.beginPath();ctx.arc(cx,cy,rad,0,Math.PI*2);
+    ctx.strokeStyle='rgba(255,255,255,0.08)';ctx.lineWidth=1.5;ctx.stroke();
+  });
+
+  // Progress arcs (clockwise from top, brightest=outer)
+  ctx.lineCap='round';
+  var arcs=[
+    {r:62, start:-Math.PI/2, end:Math.PI/3,  alpha:1.0,  w:3.5},
+    {r:44, start:-Math.PI/2, end:Math.PI/2,  alpha:0.60, w:3.0},
+    {r:26, start:-Math.PI/2, end:Math.PI/4,  alpha:0.35, w:2.5},
+  ];
+  arcs.forEach(function(a){
+    ctx.beginPath();ctx.arc(cx,cy,a.r,a.start,a.end);
+    ctx.strokeStyle='rgba(118,192,234,'+a.alpha+')';
+    ctx.lineWidth=a.w;ctx.stroke();
+  });
+
+  // Apex dot (top of outer ring = current goal)
+  ctx.beginPath();ctx.arc(cx,cy-62,5,0,Math.PI*2);
+  ctx.fillStyle='#ffffff';ctx.fill();
+
+  // Cross flare on apex
+  [[0,-8,0,-4],[0,4,0,8],[-8,0,-4,0],[4,0,8,0]].forEach(function(p){
+    ctx.beginPath();ctx.moveTo(cx+p[0],cy-62+p[1]);ctx.lineTo(cx+p[2],cy-62+p[3]);
+    ctx.strokeStyle='rgba(255,255,255,0.75)';ctx.lineWidth=1.8;ctx.stroke();
+  });
+
+  // Core circle
+  ctx.beginPath();ctx.arc(cx,cy,16,0,Math.PI*2);
+  ctx.fillStyle='#0a1628';ctx.fill();
+  ctx.beginPath();ctx.arc(cx,cy,16,0,Math.PI*2);
+  ctx.strokeStyle='rgba(118,192,234,0.7)';ctx.lineWidth=2;ctx.stroke();
+
+  // Up arrow in core
+  ctx.strokeStyle='#ffffff';ctx.lineWidth=2.8;ctx.lineCap='round';ctx.lineJoin='round';
+  ctx.beginPath();ctx.moveTo(cx,cy+8);ctx.lineTo(cx,cy-6);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(cx-6,cy-1);ctx.lineTo(cx,cy-8);ctx.lineTo(cx+6,cy-1);ctx.stroke();
+
+  // Publish
+  var png=c.toDataURL('image/png');
+  var lnk=document.getElementById('pwa-icon');if(lnk)lnk.href=png;
+  ['57','72','76','114','120','144','152','180'].forEach(function(sz){
+    var l=document.createElement('link');l.rel='apple-touch-icon';
+    l.setAttribute('sizes',sz+'x'+sz);l.href=png;document.head.appendChild(l);
+  });
+})();
+</script>
+<title>💫 StratoNote</title>
+<style>
+:root{
+  --ac:#76c0ea;--ac2:#4aa8d8;--ac3:#99d8ff;--acbg:#eef7fd;--acbr:#c4e4f5;
+  --bg:#f4f9fd;--card:#fff;--t1:#1c2a36;--t2:#4a6478;--t3:#8aa4b4;
+  --br:#cfe6f4;--ok:#3aaa72;--warn:#e09030;--bad:#d84848;
+  --r:14px;--rs:10px;
+  --sh:0 2px 12px rgba(76,168,216,.12);--sh2:0 6px 28px rgba(76,168,216,.18);
+  --st:env(safe-area-inset-top,0px);--sb:env(safe-area-inset-bottom,0px);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;overflow:hidden;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic','Noto Sans JP',sans-serif;}
+body{background:var(--bg);color:var(--t1);}
+#bgimg{position:fixed;inset:0;z-index:0;background-size:cover;background-position:center;display:none;}
+#bgimg::after{content:'';position:absolute;inset:0;background:rgba(244,249,253,.86);}
+#app{position:relative;z-index:1;display:flex;height:100%;padding-top:var(--st);}
+#sb{width:216px;min-width:216px;background:var(--card);border-right:1px solid var(--br);display:flex;flex-direction:column;box-shadow:var(--sh);z-index:20;flex-shrink:0;}
+.sbh{padding:18px 16px 13px;background:linear-gradient(150deg,var(--ac2),var(--ac));color:#fff;position:relative;overflow:hidden;}
+.sbh::after{content:'✦';position:absolute;right:10px;bottom:6px;font-size:48px;opacity:.12;}
+.sbn{font-size:17px;font-weight:800;}.sbs{font-size:10px;opacity:.75;margin-top:2px;}
+.sbtm{padding:7px 14px;background:var(--acbg);border-bottom:1px solid var(--br);font-size:11px;color:var(--t2);text-align:center;}
+.sbtm b{font-size:15px;color:var(--ac2);display:block;font-variant-numeric:tabular-nums;}
+.sbnav{flex:1;overflow-y:auto;padding:5px 0;}
+.ni{display:flex;align-items:center;gap:10px;padding:10px 16px;cursor:pointer;font-size:13px;font-weight:500;color:var(--t2);border-left:3px solid transparent;transition:.15s;user-select:none;}
+.ni:hover{background:var(--acbg);color:var(--ac2);}.ni.on{background:var(--acbg);color:var(--ac2);border-left-color:var(--ac);font-weight:700;}
+.ni-ic{width:20px;text-align:center;font-size:14px;flex-shrink:0;}
+.sbft{padding:9px 14px;border-top:1px solid var(--br);font-size:11px;color:var(--t3);}
+#main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0;}
+#desk-content{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:20px 18px 24px;}
+#mob-hd{display:none;padding:10px 16px;background:var(--card);border-bottom:1px solid var(--br);align-items:center;justify-content:space-between;flex-shrink:0;box-shadow:var(--sh);}
+#mob-tabs{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid var(--br);z-index:100;padding-bottom:var(--sb);box-shadow:0 -2px 10px rgba(76,168,216,.1);}
+.mtrow{display:flex;}.mtab{flex:1;display:flex;flex-direction:column;align-items:center;padding:6px 2px 4px;cursor:pointer;border:none;background:none;font-family:inherit;color:var(--t3);font-size:9px;font-weight:500;gap:2px;transition:.15s;min-width:0;}
+.mtab.on{color:var(--ac2);}.mtic{font-size:18px;line-height:1;}
+#mob-ct{display:none;flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:14px 14px calc(62px + var(--sb));}
+.card{background:var(--card);border-radius:var(--r);border:1px solid var(--br);padding:16px;box-shadow:var(--sh);margin-bottom:14px;}
+.ct{font-size:10px;font-weight:700;color:var(--ac2);letter-spacing:.7px;text-transform:uppercase;margin-bottom:10px;}
+.ph{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:16px;}
+.pt{font-size:20px;font-weight:800;}.ps{font-size:11px;color:var(--t3);margin-top:2px;}
+.btn{display:inline-flex;align-items:center;gap:5px;padding:8px 15px;border-radius:9px;border:none;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:.15s;-webkit-appearance:none;}
+.bp{background:var(--ac);color:#fff;}.bp:active{background:var(--ac2);}
+.bs{background:var(--acbg);color:var(--ac2);border:1px solid var(--acbr);}
+.bd{background:#fdf0f0;color:var(--bad);}
+.sm{padding:5px 11px;font-size:12px;border-radius:8px;}.ic{padding:6px;}
+input,select,textarea{width:100%;padding:9px 12px;border-radius:9px;border:1px solid var(--br);background:var(--bg);font-size:14px;color:var(--t1);font-family:inherit;outline:none;transition:.15s;-webkit-appearance:none;appearance:none;}
+input:focus,select:focus,textarea:focus{border-color:var(--ac);background:#fff;}
+label{font-size:11px;font-weight:700;color:var(--t2);display:block;margin-bottom:5px;}
+.fg{margin-bottom:12px;}
+.bdg{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;}
+.ba{background:var(--acbg);color:var(--ac2);}.bok{background:#e8f7f0;color:var(--ok);}.bwn{background:#fef5e8;color:var(--warn);}.bbd{background:#fdf0f0;color:var(--bad);}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px;}
+.sc{background:var(--card);border-radius:var(--rs);border:1px solid var(--br);padding:12px;text-align:center;}
+.sv{font-size:22px;font-weight:800;color:var(--ac2);}.sl{font-size:10px;color:var(--t3);margin-top:2px;}
+/* BADGE SYSTEM */
+.badge-icon{font-size:28px;display:block;margin-bottom:4px;}
+.badge-card{background:var(--card);border:1.5px solid var(--br);border-radius:12px;padding:12px 10px;text-align:center;box-shadow:var(--sh);}
+.badge-card.earned{border-color:var(--ac);background:var(--acbg);}
+.badge-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+/* MODAL */
+.mov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1000;align-items:flex-end;justify-content:center;}
+.mov.on{display:flex;}
+.modal{background:var(--card);border-radius:var(--r) var(--r) 0 0;padding:20px 18px;width:100%;max-width:520px;max-height:90vh;overflow-y:auto;padding-bottom:calc(20px + var(--sb));box-shadow:var(--sh2);border-top:2px solid var(--ac);animation:mup .2s ease;}
+@keyframes mup{from{transform:translateY(24px);opacity:0}to{transform:none;opacity:1}}
+.mt{font-size:16px;font-weight:800;margin-bottom:16px;}.mact{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;}
+@media(min-width:600px){.mov{align-items:center;}.modal{border-radius:var(--r);max-width:460px;}}
+#toast{position:fixed;bottom:calc(70px + var(--sb));left:50%;transform:translateX(-50%) translateY(8px);background:rgba(28,42,54,.92);color:#fff;padding:9px 18px;border-radius:20px;font-size:12px;font-weight:500;opacity:0;transition:.25s;z-index:2000;white-space:nowrap;pointer-events:none;}
+#toast.on{opacity:1;transform:translateX(-50%) translateY(0);}
+@media(min-width:681px){#toast{bottom:24px;}}
+/* CALENDAR */
+.cg{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;}
+.cdh{text-align:center;font-size:10px;font-weight:600;color:var(--t3);padding:3px 0;}
+.cd{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:3px 2px 4px;border-radius:7px;cursor:pointer;font-size:11px;transition:.12s;border:1.5px solid transparent;color:var(--t2);min-height:54px;}
+.cd:hover{background:var(--acbg);}.cd.today{background:var(--ac);color:#fff;font-weight:800;}.cd.sel{border-color:var(--ac);background:var(--acbg);}.cd.om{opacity:.3;}
+.cdts{display:flex;gap:2px;margin-top:1px;}.dot{width:4px;height:4px;border-radius:50%;background:var(--ac);}.dot.h{background:var(--bad);}.dot.m{background:var(--warn);}
+.cd-mini{font-size:8px;line-height:1.3;text-align:center;margin-top:1px;width:100%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;}
+.cd-mini.tm{color:var(--ac2);}
+.cd-mini.ld-ok{color:var(--ok);}.cd-mini.ld-warn{color:var(--warn);}.cd-mini.ld-bad{color:var(--bad);}
+.cd-mini.tsk{color:var(--warn);}
+.cd.today .cd-mini{color:rgba(255,255,255,.85);}
+.ev{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--rs);background:var(--acbg);border:1px solid var(--br);margin-bottom:6px;}
+.ev-bar{width:4px;min-height:36px;border-radius:2px;flex-shrink:0;}
+.lb{height:8px;border-radius:4px;background:var(--br);overflow:hidden;margin-top:4px;}
+.lbf{height:100%;border-radius:4px;transition:.4s;min-width:4px;}
+.tbars{display:flex;gap:4px;align-items:flex-end;height:52px;}
+.tbar{flex:1;border-radius:3px 3px 0 0;min-height:5px;}
+.tlbls{display:flex;gap:4px;margin-top:4px;}
+.tlbl{flex:1;text-align:center;font-size:9px;color:var(--t3);}
+/* TIMER */
+.tdisp{font-size:72px;font-weight:800;letter-spacing:-3px;font-variant-numeric:tabular-nums;text-align:center;line-height:1;transition:color .3s;color:var(--t1);}
+.tdisp.run{color:var(--ac2);}.tdisp.pau{color:var(--warn);}
+.chips{display:flex;gap:6px;flex-wrap:wrap;}
+.chip{padding:6px 12px;border-radius:18px;border:1.5px solid var(--br);font-size:12px;font-weight:600;cursor:pointer;background:#fff;color:var(--t2);transition:.12s;}
+.chip.on{border-color:var(--ac);background:var(--acbg);color:var(--ac2);}
+/* FLASHCARDS */
+.fcw{perspective:1000px;max-width:420px;margin:0 auto 16px;}
+.fcc{width:100%;aspect-ratio:16/9;position:relative;transform-style:preserve-3d;transition:.45s cubic-bezier(.4,0,.2,1);cursor:pointer;border-radius:var(--r);}
+.fcc.flip{transform:rotateY(180deg);}
+.fcf{position:absolute;inset:0;border-radius:var(--r);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;backface-visibility:hidden;-webkit-backface-visibility:hidden;box-shadow:var(--sh2);}
+.fcf-fr{background:linear-gradient(135deg,var(--ac2),var(--ac3));color:#fff;}
+.fcf-bk{background:var(--card);transform:rotateY(180deg);border:1px solid var(--br);}
+.fclbl{font-size:9px;font-weight:700;opacity:.7;margin-bottom:8px;letter-spacing:1.5px;}
+.fctxt{font-size:clamp(14px,4vw,20px);font-weight:700;text-align:center;line-height:1.5;}
+.fcprog{display:flex;align-items:center;gap:8px;margin-bottom:10px;font-size:12px;color:var(--t2);}
+.fcpb{flex:1;height:5px;background:var(--br);border-radius:3px;overflow:hidden;}.fcpf{height:100%;background:var(--ac);transition:.3s;}
+.fcbtns{display:flex;gap:8px;justify-content:center;margin-bottom:12px;flex-wrap:wrap;}
+.fb{padding:10px 18px;border-radius:9px;border:none;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;transition:.15s;}
+.fbok{background:#e8f7f0;color:var(--ok);border:1.5px solid #b0e8cc;}
+.fbng{background:#fdf0f0;color:var(--bad);border:1.5px solid #f4c0c0;}
+.fbsk{background:var(--acbg);color:var(--t2);border:1.5px solid var(--acbr);}
+.dki{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-radius:var(--rs);background:var(--acbg);border:1px solid var(--br);margin-bottom:7px;cursor:pointer;}
+/* FC inline add */
+.fc-add-bar{background:var(--card);border:1px solid var(--br);border-radius:var(--r);padding:14px;margin-bottom:12px;}
+/* SKILL TREE - NEW SUBJECT SELECT + FULLSCREEN MAP */
+.sk-subj-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:14px;}
+.sk-subj-card{background:var(--card);border-radius:var(--r);border:2px solid var(--br);padding:16px 14px;cursor:pointer;transition:.15s;text-align:center;position:relative;overflow:hidden;}
+.sk-subj-card:active{transform:scale(0.97);}
+.sk-subj-card.has-skills{border-color:var(--ac);}
+.sk-subj-name{font-size:14px;font-weight:800;margin-bottom:4px;}
+.sk-subj-count{font-size:11px;color:var(--t3);}
+.sk-subj-bar{position:absolute;bottom:0;left:0;height:3px;border-radius:0 2px 2px 0;transition:.4s;}
+/* Fullscreen skill map overlay */
+#sk-map-overlay{display:none;position:fixed;inset:0;z-index:500;background:var(--bg);flex-direction:column;}
+#sk-map-overlay.on{display:flex;}
+#sk-map-hd{background:var(--card);border-bottom:1px solid var(--br);padding:10px 14px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;padding-top:calc(10px + var(--st));}
+#sk-map-title{font-size:16px;font-weight:800;}
+#sk-map-body{flex:1;overflow:hidden;padding:14px;padding-bottom:calc(14px + var(--sb));position:relative;cursor:grab;user-select:none;}
+#sk-map-body.panning{cursor:grabbing;}
+/* SVG wrap は絶対配置でパン時に translate する */
+#sk-map-svg-wrap{display:inline-block;min-width:100%;position:absolute;top:0;left:0;}
+.sk-add-form{display:none;background:var(--acbg);border:1.5px solid var(--ac);border-radius:var(--r);padding:14px;margin-bottom:12px;}
+.sk-add-form.on{display:block;}
+/* TEST */
+.ttabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;}
+.ttab{padding:6px 12px;border-radius:18px;border:1.5px solid var(--br);font-size:12px;font-weight:600;cursor:pointer;background:#fff;color:var(--t2);}
+.ttab.on{border-color:var(--ac);background:var(--acbg);color:var(--ac2);}
+.trnd{border-radius:var(--rs);border:1px solid var(--br);margin-bottom:10px;overflow:hidden;}
+.trnd-h{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--acbg);cursor:pointer;gap:8px;}
+.trnd-n{font-size:13px;font-weight:700;flex:1;}.trnd-b{padding:14px;display:none;}
+.srow{display:flex;align-items:center;gap:10px;margin-bottom:7px;}
+.srow-lbl{font-size:12px;font-weight:600;color:var(--t2);width:64px;flex-shrink:0;}
+.srow-bw{flex:1;height:14px;background:var(--br);border-radius:7px;overflow:hidden;}
+.srow-bf{height:100%;border-radius:7px;transition:.4s;}
+.srow-v{font-size:11px;font-weight:700;width:52px;text-align:right;flex-shrink:0;}
+/* SETTINGS */
+.sect{font-size:10px;font-weight:700;color:var(--ac2);letter-spacing:.8px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--br);}
+.subr{display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--br);font-size:13px;}
+.subr:last-child{border-bottom:none;}
+#offbdg{display:none;position:fixed;top:calc(8px + var(--st));right:8px;z-index:9999;background:var(--warn);color:#fff;padding:3px 10px;border-radius:12px;font-size:10px;font-weight:700;}
+@media(max-width:680px){
+  #sb{display:none;}#main{display:none;}
+  #mob-hd{display:flex;}#mob-tabs{display:block;}#mob-ct{display:block;}
+  #app{flex-direction:column;}
+}
+@media(min-width:681px){#app{flex-direction:row;}}
+</style>
+</head>
+<body>
+<div id="bgimg"></div>
+<div id="offbdg">✦ オフライン</div>
+<div id="toast"></div>
+<div id="app">
+<nav id="sb">
+  <div class="sbh"><div class="sbn">💫 StratoNote</div><div class="sbs">受験学習管理システム</div></div>
+  <div class="sbtm">今日の学習<b id="sbt-d">0:00:00</b></div>
+  <div class="sbnav">
+    <div class="ni on" data-p="home" onclick="go('home')"><span class="ni-ic">⌂</span>ホーム</div>
+    <div class="ni" data-p="study" onclick="go('study')"><span class="ni-ic">◷</span>学習</div>
+    <div class="ni" data-p="stlog" onclick="go('stlog')" style="padding-left:28px;font-size:12px"><span class="ni-ic" style="font-size:12px">◈</span>勉強時間</div>
+    <div class="ni" data-p="cal" onclick="go('cal')" style="padding-left:28px;font-size:12px"><span class="ni-ic" style="font-size:12px">◫</span>カレンダー</div>
+    <div class="ni" data-p="tmr" onclick="go('tmr')" style="padding-left:28px;font-size:12px"><span class="ni-ic" style="font-size:12px">◷</span>タイマー</div>
+    <div class="ni" data-p="fc" onclick="go('fc')" style="padding-left:28px;font-size:12px"><span class="ni-ic" style="font-size:12px">✦</span>暗記カード</div>
+    <div class="ni" data-p="sk" onclick="go('sk')"><span class="ni-ic">✧</span>スキルツリー</div>
+    <div class="ni" data-p="grades" onclick="go('grades')"><span class="ni-ic">◎</span>成績</div>
+    <div class="ni" data-p="an" onclick="go('an')" style="padding-left:28px;font-size:12px"><span class="ni-ic" style="font-size:12px">◎</span>テスト分析</div>
+    <div class="ni" data-p="bdg" onclick="go('bdg')" style="padding-left:28px;font-size:12px"><span class="ni-ic" style="font-size:12px">🏅</span>実績</div>
+    <div class="ni" data-p="cfg" onclick="go('cfg')"><span class="ni-ic">◉</span>設定</div>
+  </div>
+  <div class="sbft" id="sbd-str">✦ 0日連続</div>
+</nav>
+<div id="main"><div id="desk-content"></div></div>
+<div id="mob-hd">
+  <span style="font-size:15px;font-weight:800;color:var(--ac2)">💫 StratoNote</span>
+  <span style="font-size:12px;color:var(--ac2);font-weight:700;font-variant-numeric:tabular-nums" id="sbt-m">0:00:00</span>
+</div>
+<div id="mob-ct"></div>
+<div id="mob-tabs">
+  <div class="mtrow">
+    <button class="mtab on" data-p="home" onclick="go('home')"><span class="mtic">⌂</span>ホーム</button>
+    <button class="mtab" data-p="study" onclick="go('study')"><span class="mtic">◷</span>学習</button>
+    <button class="mtab" data-p="sk" onclick="go('sk')"><span class="mtic">✧</span>スキル</button>
+    <button class="mtab" data-p="grades" onclick="go('grades')"><span class="mtic">◎</span>成績</button>
+    <button class="mtab" data-p="cfg" onclick="go('cfg')"><span class="mtic">◉</span>設定</button>
+  </div>
+</div>
+</div>
+
+<!-- MODALS -->
+<div class="mov" id="mev"><div class="modal">
+  <div class="mt" id="mev-title">予定を追加</div>
+  <div class="fg"><label>タイトル</label><input id="evt" placeholder="例：数学演習"></div>
+  <div class="fg"><label>日付</label><input type="date" id="evd"></div>
+  <div class="fg"><label>教科</label><select id="evs"></select></div>
+  <div class="fg"><label>負荷レベル: <b id="evlv" style="color:var(--ac2)">2</b></label>
+    <input type="range" id="evl" min="1" max="5" value="2" oninput="document.getElementById('evlv').textContent=this.value" style="padding:4px 0;border:none;background:none;width:100%"></div>
+  <div class="mact"><button class="btn bs" onclick="closeM('mev')">キャンセル</button><button class="btn bp" onclick="saveEv()">保存</button></div>
+</div></div>
+
+<div class="mov" id="mdeck"><div class="modal">
+  <div class="mt">デッキを作成</div>
+  <div class="fg"><label>デッキ名</label><input id="dkn" placeholder="例：英単語 Level 1"></div>
+  <div class="fg"><label>教科</label><select id="dks"></select></div>
+  <div class="mact"><button class="btn bs" onclick="closeM('mdeck')">キャンセル</button><button class="btn bp" onclick="saveDk()">作成</button></div>
+</div></div>
+
+<div class="mov" id="mcard"><div class="modal">
+  <div class="mt">カードを追加</div>
+  <div class="fg">
+    <label>CSV/テキストファイルを読み込む</label>
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">
+      <button class="btn bs sm" onclick="document.getElementById('xlsf').click()">ファイル選択</button>
+      <input type="file" id="xlsf" accept=".csv,.txt,.tsv" style="display:none" onchange="loadCardFile(event)">
+    </div>
+    <label>貼り付け（問題[Tab or カンマ]答え）</label>
+    <textarea id="cbulk" rows="5" placeholder="apple	リンゴ&#10;book	本"></textarea>
+  </div>
+  <div style="display:flex;gap:8px;margin-top:4px">
+    <div class="fg" style="flex:1;margin-bottom:0"><label>問題</label><input id="cq" placeholder="表面"></div>
+    <div class="fg" style="flex:1;margin-bottom:0"><label>答え</label><input id="ca" placeholder="裏面"></div>
+  </div>
+  <div class="mact"><button class="btn bs" onclick="closeM('mcard')">キャンセル</button><button class="btn bp" onclick="saveCards()">追加</button></div>
+</div></div>
+
+<div class="mov" id="mrnd"><div class="modal">
+  <div class="mt" id="mrnd-title">テストを追加</div>
+  <div class="fg"><label>テスト名</label><input id="rnn" placeholder="例：第1回定期考査"></div>
+  <div class="fg"><label>種類</label><select id="rntype">
+    <option value="考査">定期考査</option><option value="模試">模試</option>
+    <option value="小テスト">小テスト</option><option value="その他">その他</option>
+  </select></div>
+  <div class="fg"><label>日付</label><input type="date" id="rnd"></div>
+  <div class="fg"><label>教科（複数可）</label><div class="chips" id="rnchips" style="flex-wrap:wrap;gap:6px;margin-top:4px"></div></div>
+  <div class="mact"><button class="btn bs" onclick="closeM('mrnd')">キャンセル</button><button class="btn bp" onclick="nextRnd()">次へ →</button></div>
+</div></div>
+
+<div class="mov" id="msc"><div class="modal">
+  <div class="mt">点数を入力</div>
+  <div style="font-size:12px;color:var(--t2);margin-bottom:12px" id="msc-info"></div>
+  <div id="scinps"></div>
+  <div class="mact"><button class="btn bs" onclick="closeM('msc')">キャンセル</button><button class="btn bp" onclick="saveRnd()">保存</button></div>
+</div></div>
+
+<div class="mov" id="msubj"><div class="modal">
+  <div class="mt">教科を追加</div>
+  <div class="fg"><label>教科名</label><input id="subjn" placeholder="例：数学II"></div>
+  <div class="mact"><button class="btn bs" onclick="closeM('msubj')">キャンセル</button><button class="btn bp" onclick="saveSubj()">追加</button></div>
+</div></div>
+
+<!-- SKILL MAP FULLSCREEN OVERLAY -->
+<div id="sk-map-overlay">
+  <div id="sk-map-hd">
+    <div style="display:flex;align-items:center;gap:8px">
+      <button class="btn bs sm" onclick="closeSkMap()" style="padding:5px 12px;font-weight:700">← 戻る</button>
+      <div id="sk-map-title" style="font-size:15px;font-weight:800"></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:6px">
+      <span id="sk-map-count" style="font-size:11px;color:var(--t2);white-space:nowrap"></span>
+      <button class="btn bs sm" onclick="resetSKLayout()" style="padding:4px 9px;font-size:11px">↺</button>
+      <button class="btn bp sm" onclick="openSkFormMap(null)" style="padding:5px 11px;white-space:nowrap">＋ 追加</button>
+    </div>
+  </div>
+  <div id="sk-map-add-form" style="margin:0;padding:12px 14px;background:var(--acbg);border-bottom:1.5px solid var(--ac);display:none">
+    <div style="font-size:12px;font-weight:700;color:var(--ac2);margin-bottom:8px" id="sk-map-form-title">スキルを追加</div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <input id="sk-map-inp" placeholder="スキル名を入力" style="flex:1" onkeydown="if(event.key==='Enter')addSkillMap()">
+      <button class="btn bp sm" onclick="addSkillMap()" style="white-space:nowrap;flex-shrink:0">追加</button>
+      <button class="btn bs sm" onclick="closeSkFormMap()" style="flex-shrink:0">✕</button>
+    </div>
+  </div>
+  <div style="font-size:10px;color:var(--t3);padding:5px 14px;background:var(--bg);border-bottom:1px solid var(--br);flex-shrink:0">
+    タップ: 完了/未完了 ｜ ✕: 削除 ｜ ＋: 子スキルを追加 ｜ ノードドラッグ: 移動 ｜ 空白ドラッグ: 画面を動かす
+  </div>
+  <div id="sk-map-body">
+    <div id="sk-map-svg-wrap"></div>
+  </div>
+</div>
+
+<script>
+// §1 STATE & STORAGE ─────────────────────────
+// localStorage キー・データ初期値・読み書き関数
+const SKEY='sn6';
+
+// ── モジュールレベル状態変数 ─────────────────────────────────────
+// アプリ全体から参照される状態。初期値はここで一元管理する。
+// 変数名・型・用途のコメントを維持すること。
+
+// ナビゲーション
+let curP      = null;    // 現在表示中のページ識別子 ('home'|'study'|...|null)
+let lastMob   = null;    // 直前のモバイル判定結果（リサイズ検知用）
+
+// カレンダー（calState オブジェクトに集約済み・エイリアスあり）
+// → §10 calState を参照
+
+// 勉強時間ログ
+let stLogTab  = 'day';   // 'day'|'week'|'month'|'year'
+
+// タイマー（timerState オブジェクトに集約済み・エイリアスあり）
+// → §11 timerState を参照
+
+// 暗記カード
+let curDk       = -1;       // 現在選択中のデッキindex (-1=未選択)
+let fcQueue     = [];        // 学習キュー（カードオブジェクトの配列）
+let fcQIdx      = 0;         // キュー内の現在位置
+let fcFlipped   = false;     // カードが裏返しか
+let fcStudyMode = 'all';     // 'all'|'ng'|'unlearned'
+let fcDirection = 'normal';  // 'normal'|'reverse'
+let fcTimerStart = 0;        // 暗記カードセッション開始ms
+let fcTimerSubj  = '';       // 暗記カードセッション教科
+
+// スキルツリー
+let curSKS        = '';    // 現在表示中の教科名
+let skFormParentId = null; // スキル追加フォームの親ID
+let skMapParentId  = null; // スキルマップ上の追加対象親ID
+let _skPanCleanup  = null; // スキルマップパン：前回のcleanup関数
+
+// テスト分析
+let tmpRnd    = null;  // 編集中の試験データ（一時保存）
+let rndSubjs  = [];    // 試験追加モーダルで選択中の教科リスト
+let curTType  = '全て'; // 現在表示中の試験種別フィルタ
+
+// モーダル編集インデックス
+let editEvIdx  = -1;  // カレンダー：編集中の予定index
+let editRndIdx = -1;  // テスト：編集中のラウンドindex
+
+// 設定タブ
+let cfgTab = 'settings'; // 'settings'|'info'
+
+// Canvas ID カウンタ（重複防止用）
+var _trendCID = 0;
+
+// §1b VERSIONING ──────────────────────────────
+// バージョン番号とCHANGELOGはここで管理する。
+// アップデート時は APP_VERSION を上げ、pCfgInfo() の CHANGELOG 配列に1エントリ追加する。
+const APP_VERSION='4.2';
+const DATA_VERSION=2;
+
+// §2 CONFIG ──────────────────────────────────
+// 定数・閾値はすべてここに集約。他の場所にハードコードしない。
+const CFG = {
+  // デフォルト教科リスト
+  SUBJECTS: ['国語','古典','地理','日本史','世界史','公共','数学','物理','化学','生物','英語','情報'],
+  // 教科カラーマップ（scolor() の参照元）
+  SUBJECT_COLORS: {
+    '国語':'#c0392b','古典':'#d35400','地理':'#27ae60','日本史':'#8e44ad',
+    '世界史':'#6c3483','公共':'#16a085','数学':'#2471a3','物理':'#1a5276',
+    '化学':'#117a65','生物':'#1e8449','英語':'#d4ac0d','情報':'#5d6d7e',
+  },
+  DEFAULT_COLOR: '#76c0ea',
+  // 成績閾値
+  SCORE: { GOOD: 80, WARN: 60 },     // %以上でOK/WARN/BAD
+  LOAD:  { HIGH: 8,  MID: 4  },     // 負荷レベル
+  // 学習記録
+  MIN_SESSION_MS: 4000,             // これ未満は記録しない
+  // ストレージ
+  STORAGE_WARN_BYTES: 4_500_000,
+  // タイマーキー
+  TIMER_KEY: 'sn6_timer_start',
+
+  // ── ミリ秒定数 (CFG.MS.*) ─────────────────────────────────────
+  // バッジ条件・判定ロジックで直接数値を書かない。変更はここだけ。
+  MS: {
+    _10S:         10_000,       // 10秒 (g_matcho: この未満で切る)
+    _1H:       3_600_000,       // 1時間
+    _4H:      14_400_000,       // 4時間 (t5_2day8h: 連続2日の1日分)
+    _5H:      18_000_000,       // 5時間 (t3_5h1day)
+    _5H2M:    18_120_000,       // 5時間2分 (g_1dalada ±30s)
+    _6H:      21_600_000,       // 6時間 (t4_6hcont / g_omya)
+    _10H:     36_000_000,       // 10時間 (t2_10h)
+    _27H:     97_200_000,       // 27時間 (t3_27h)
+    _104H:   374_400_000,       // 104時間 (t3_104h)
+    _422H: 1_519_200_000,       // 422時間 (t4_422h)
+    _1227H:4_417_200_000,       // 1227時間 (t6_1227h)
+    _1DAY:    86_400_000,       // 1日
+    _30S:         30_000,       // 30秒 (g_1dalada の許容誤差)
+  },
+};
+
+// §3 UI HELPERS ──────────────────────────────
+// ページ・カード・バッジなどのHTML文字列を返す共通部品。副作用なし。
+
+/** 教科カラーを返す */
+// [pure] subjColor
+function subjColor(s){ return CFG.SUBJECT_COLORS[s] || CFG.DEFAULT_COLOR; }
+
+/** 負荷レベルに応じた CSS カラー変数を返す */
+// [pure] loadColor
+function loadColor(v){ return v>=CFG.LOAD.HIGH?'var(--bad)':v>=CFG.LOAD.MID?'var(--warn)':'var(--ok)'; }
+
+/** 得点%に応じた CSS カラー変数を返す */
+// [pure] scoreColor
+function scoreColor(pct){ return pct>=CFG.SCORE.GOOD?'var(--ok)':pct>=CFG.SCORE.WARN?'var(--warn)':'var(--bad)'; }
+
+/** バッジ HTML（色クラス付き） */
+// [pure] badgeHTML
+function badgeHTML(text, cls){ return `<span class="bdg ${cls||'ba'}">${text}</span>`; }
+
+/** 進捗バー HTML（アニメーション付き、data-pct で JS が幅をセット） */
+// [pure] progressBar
+function progressBar(pct, color){
+  return `<div class="srow-bw"><div class="srow-bf" data-pct="${pct}" style="width:0%;background:${color}"></div></div>`;
+}
+
+/** ナビリンクカード（ハブページ用） */
+// [pure] navCard
+function navCard(page, icon, title, sub){
+  return `<div onclick="go('${page}')" class="card" style="cursor:pointer;display:flex;align-items:center;gap:16px;padding:18px">`
+    +`<span style="font-size:32px">${icon}</span>`
+    +`<div><div style="font-size:16px;font-weight:700">${title}</div><div style="font-size:12px;color:var(--t3);margin-top:2px">${sub}</div></div>`
+    +`<span style="margin-left:auto;color:var(--ac2)">›</span></div>`;
+}
+
+/** ページヘッダー HTML */
+// [pure] pageHeader
+function pageHeader(title, sub, leftBtn, rightBtns){
+  const l = leftBtn
+    ? `<div style="display:flex;align-items:center;gap:8px">${leftBtn}<div><div class="pt">${title}</div>${sub?`<div class="ps">${sub}</div>`:''}</div></div>`
+    : `<div><div class="pt">${title}</div>${sub?`<div class="ps">${sub}</div>`:''}</div>`;
+  const r = rightBtns ? `<div style="display:flex;gap:6px">${rightBtns}</div>` : '';
+  return `<div class="ph">${l}${r}</div>`;
+}
+
+/** 戻るボタン HTML */
+// [pure] backBtn
+function backBtn(page, label){
+  return `<button class="btn bs sm" onclick="go('${page}')" style="padding:5px 10px">← ${label||'戻る'}</button>`;
+}
+// DSUBJ は後方互換のエイリアス（loadS・importD 等が参照）
+const DSUBJ = CFG.SUBJECTS;
+let S={subjects:[...DSUBJ],events:[],sessions:[],decks:[],skills:{},rounds:[],settings:{bg:''},todayMs:0,todayMs_base:0,weekMs:[0,0,0,0,0,0,0],streak:0,lastDate:'',earnedBadges:[],earnedDates:{},_didReset:true};
+// [event] loadS
+function loadS(){
+  try{const d=localStorage.getItem(SKEY);if(d)S=Object.assign({},S,JSON.parse(d));}catch(e){}
+  DSUBJ.forEach(s=>{if(!S.skills[s])S.skills[s]=[];});
+  S.subjects=S.subjects||[...DSUBJ];
+  S.subjects.forEach(s=>{if(!S.skills[s])S.skills[s]=[];});
+  S.earnedBadges=S.earnedBadges||[];
+  S.earnedDates=S.earnedDates||{};
+  S.todayMs_base=S.todayMs||0;
+  const td=today();
+  if(S.lastDate&&S.lastDate!==td){S.todayMs=0;S.todayMs_base=0;}
+  // weekMs: reset if saved date is from a previous week
+  (function(){
+    var now=new Date();
+    var dow=now.getDay();
+    var monOffset=dow===0?-6:1-dow;
+    var weekStart=new Date(now);weekStart.setDate(now.getDate()+monOffset);weekStart.setHours(0,0,0,0);
+    var lastSaved=S.lastDate?new Date(S.lastDate):null;
+    if(!lastSaved||lastSaved<weekStart){S.weekMs=[0,0,0,0,0,0,0];}
+  })();
+}
+// [event] saveS
+function saveS(){
+  try{
+    const json=JSON.stringify(S);
+    if(json.length>CFG.STORAGE_WARN_BYTES){toast('注意: データ容量が大きくなっています。エクスポートを推奨します');}
+    localStorage.setItem(SKEY,json);
+  }catch(e){toast('注意: 保存容量が不足しています。背景画像を削除するか、エクスポートしてください');}
+}
+// [pure] today
+function today(){return new Date().toISOString().slice(0,10);}
+// [pure] pad
+function pad(n){return String(n).padStart(2,'0');}
+// [pure] fmtMs
+function fmtMs(ms,f){const t=Math.floor((ms||0)/1e3),h=Math.floor(t/3600),m=Math.floor((t%3600)/60),s=t%60;return f?pad(h)+':'+pad(m)+':'+pad(s):h+'h'+pad(m)+'m';}
+// [pure] fmtMs
+function fmtMsClock(ms){const t=Math.floor((ms||0)/1e3),h=Math.floor(t/3600),m=Math.floor((t%3600)/60),s=t%60;return pad(h)+':'+pad(m)+':'+pad(s);}
+
+// §4 NAVIGATION ──────────────────────────────
+// ページ遷移・レンダリング・モバイル/デスクトップ切替
+const isMob=()=>window.innerWidth<=680;
+// [pure] getC
+function getC(){return isMob()?document.getElementById('mob-ct'):document.getElementById('desk-content');}
+// [event] go
+function go(p){
+  // 同じページへの連打でCanvasが孤立するのを防ぐ遷移ガード
+  // ただしcfgTabなど内部状態が変わる場合は再描画が必要なのでcfg/an/stlogは除外
+  const noGuard=['cfg','an','stlog','fc'];
+  if(curP===p && !noGuard.includes(p)) return;
+  curP=p;
+  document.querySelectorAll('.ni').forEach(el=>el.classList.toggle('on',el.getAttribute('data-p')===p));
+  // Mobile tabs: highlight parent tab for sub-pages
+  const mobParent={'cal':'study','tmr':'study','fc':'study','stlog':'study','an':'grades','bdg':'grades'};
+  const activeTab=mobParent[p]||p;
+  document.querySelectorAll('.mtab').forEach(el=>el.classList.toggle('on',el.getAttribute('data-p')===activeTab));
+  const c=getC();if(!c)return;
+  c.innerHTML=genP(p);
+  setTimeout(()=>postRender(p),30);
+}
+// [pure] genP
+function genP(p){
+  if(p==='home')return pHome();
+  if(p==='study')return pStudy();
+  if(p==='stlog')return pStLog();
+  if(p==='cal')return pCal();if(p==='tmr')return pTmr();
+  if(p==='fc')return pFC();if(p==='sk')return pSK();
+  if(p==='grades')return pGrades();
+  if(p==='an')return pAn();if(p==='bdg')return pBadge();if(p==='cfg')return pCfg();
+  return '';
+}
+// [render] postRender
+function postRender(p){
+  if(p==='cal')renderCalGrid();
+  if(p==='stlog')renderStLogCharts();
+  if(p==='an'){renderAnSubj();setTimeout(animateAnBars,50);}
+}
+window.addEventListener('resize',()=>{
+  const nm=isMob();
+  if(nm!==lastMob){lastMob=nm;if(curP)go(curP);}
+});
+
+// §5 MODAL ───────────────────────────────────
+// モーダルの開閉。openM(id)/closeM(id) で操作する。
+// [event] openM
+function openM(id){fillSels();if(id==='mev'){document.getElementById('evd').value=selDate||today();}if(id==='mrnd')buildRndChips();document.getElementById(id).classList.add('on');}
+// [event] closeM
+function closeM(id){document.getElementById(id).classList.remove('on');}
+document.querySelectorAll('.mov').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('on');}));
+// [render] fillSels
+function fillSels(){
+  ['evs','dks'].forEach(id=>{const el=document.getElementById(id);if(!el)return;const pv=el.value;el.innerHTML=(S.subjects||[]).map(s=>`<option value="${s}">${s}</option>`).join('');if(pv)el.value=pv;});
+}
+
+// §6 TOAST ──────────────────────────────────
+let toastT;
+// [render] toast
+function toast(msg){const t=document.getElementById('toast');clearTimeout(toastT);t.textContent=msg;t.classList.add('on');toastT=setTimeout(()=>t.classList.remove('on'),2600);}
+
+// §7 HELPERS ─────────────────────────────────
+// 計算・描画ユーティリティ（負荷集計、週別日付、折れ線グラフ等）
+// scolor / lcolor は互換エイリアス。新規コードは subjColor / loadColor / scoreColor を使う
+// [pure] scolor
+function scolor(s){ return subjColor(s); }
+// [pure] lcolor
+function lcolor(v){ return loadColor(v); }
+// [pure] calcLoad
+function calcLoad(ds){const ev=(S.events||[]).filter(e=>e.date===ds).reduce((a,e)=>a+(e.load||1),0);const ses=Math.round((S.sessions||[]).filter(s=>localDateStr(new Date(s.ts))===ds).reduce((a,s)=>a+s.dur,0)/900000);return ev+ses;}
+// [pure] wkDates
+function wkDates(){const dow=new Date().getDay(),d=new Date();return Array.from({length:7},(_,i)=>{const dd=new Date(d);dd.setDate(d.getDate()-dow+i);return dd.toISOString().slice(0,10);});}
+// [render] trendBarsHTML
+function trendBarsHTML(lds){
+  var cid='tc'+(_trendCID++);
+  var days=['日','月','火','水','木','金','土'];
+  var dow=new Date().getDay();
+  requestAnimationFrame(function(){setTimeout(function(){drawTrendLine(cid,lds,days,dow);},20);});
+  return'<canvas id="'+cid+'" style="width:100%;height:64px;display:block" height="64"></canvas>'
+    +'<div style="display:flex;gap:4px;margin-top:4px">'
+    +days.map(function(d,i){return'<div style="flex:1;text-align:center;font-size:9px;color:'+(i===dow?'var(--ac2)':'var(--t3)')+'">'+d+'</div>';}).join('')
+    +'</div>';
+}
+// [render] drawTrendLine
+function drawTrendLine(cid,lds,days,dow){
+  var cv=document.getElementById(cid);if(!cv)return;
+  var dpr=window.devicePixelRatio||1;
+  var W=cv.offsetWidth||300;var H=64;
+  cv.width=W*dpr;cv.height=H*dpr;cv.style.width=W+'px';cv.style.height=H+'px';
+  var ctx=cv.getContext('2d');ctx.scale(dpr,dpr);
+  var pd={t:6,r:8,b:4,l:8};
+  var gW=W-pd.l-pd.r;var gH=H-pd.t-pd.b;
+  var mx=Math.max(Math.max.apply(null,lds),10);
+  var n=lds.length;
+  // reference line at 10
+  var refY=pd.t+gH-(10/mx*gH);
+  ctx.setLineDash([3,3]);ctx.strokeStyle='rgba(76,168,216,0.3)';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(pd.l,refY);ctx.lineTo(W-pd.r,refY);ctx.stroke();
+  ctx.setLineDash([]);
+  // gradient fill
+  var grad=ctx.createLinearGradient(0,pd.t,0,pd.t+gH);
+  grad.addColorStop(0,'rgba(76,168,216,0.25)');grad.addColorStop(1,'rgba(76,168,216,0.02)');
+  ctx.beginPath();
+  var pts=lds.map(function(v,i){return{x:pd.l+(n===1?gW/2:i/(n-1)*gW),y:pd.t+gH-(v/mx*gH)};});
+  ctx.moveTo(pts[0].x,pd.t+gH);
+  pts.forEach(function(p){ctx.lineTo(p.x,p.y);});
+  ctx.lineTo(pts[pts.length-1].x,pd.t+gH);
+  ctx.closePath();ctx.fillStyle=grad;ctx.fill();
+  // line
+  ctx.beginPath();ctx.strokeStyle=CFG.DEFAULT_COLOR;ctx.lineWidth=2;ctx.lineJoin='round';
+  pts.forEach(function(p,i){i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y);});
+  ctx.stroke();
+  // dots — 負荷レベルに応じて CFG 閾値で色分け
+  pts.forEach(function(p,i){
+    var v=lds[i];
+    var c=v>=CFG.LOAD.HIGH?'#d84848':v>=CFG.LOAD.MID?'#e09030':CFG.DEFAULT_COLOR;
+    ctx.beginPath();ctx.arc(p.x,p.y,i===dow?5:3,0,Math.PI*2);
+    ctx.fillStyle=i===dow?c:'rgba(76,168,216,0.7)';ctx.fill();
+    if(i===dow){ctx.strokeStyle='#fff';ctx.lineWidth=1.5;ctx.stroke();}
+  });
+}
+// [render] updTime
+function updTime(){
+  const ts=fmtMsClock(S.todayMs);
+  ['sbt-d','sbt-m'].forEach(id=>{const e=document.getElementById(id);if(e)e.textContent=ts;});
+  const tt=document.getElementById('t-today-disp');if(tt)tt.textContent=ts;
+}
+
+// §7b SUBJECT PIE CHART ──────────────────────
+// 教科別ドーナツ円グラフのHTML生成・Canvas描画
+/**
+ * 教科別学習時間を円グラフ＋凡例で表示する HTML を返す。
+ * sd  : { 教科名: ミリ秒, ... }
+ * tot : 合計ミリ秒（0 除算防止のため呼び出し元が担保）
+ */
+// [render] buildSubjPieHTML
+function buildSubjPieHTML(sd, tot) {
+  var cid = 'pie' + (_trendCID++);
+  var entries = Object.entries(sd).sort(function(a,b){return b[1]-a[1];});
+  // Canvas は requestAnimationFrame 後に描画
+  requestAnimationFrame(function(){
+    setTimeout(function(){ drawSubjPie(cid, entries, tot); }, 20);
+  });
+  // 凡例 HTML（右側に並べる）
+  var legendH = entries.map(function(kv){
+    var subj = kv[0], ms = kv[1];
+    var pct = Math.round(ms / tot * 100);
+    var h = Math.floor(ms/CFG.MS._1H), m = Math.floor((ms%CFG.MS._1H)/60000);
+    return '<div style="display:flex;align-items:center;gap:6px;margin-bottom:5px">'
+      + '<div style="width:10px;height:10px;border-radius:50%;background:'+scolor(subj)+';flex-shrink:0"></div>'
+      + '<div style="font-size:11px;font-weight:700;flex:1;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">'+subj+'</div>'
+      + '<div style="font-size:11px;color:var(--t2);white-space:nowrap">'+h+'h'+pad(m)+'m</div>'
+      + '<div style="font-size:11px;font-weight:800;color:var(--ac2);width:32px;text-align:right">'+pct+'%</div>'
+      + '</div>';
+  }).join('');
+  return '<div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">'
+    + '<canvas id="'+cid+'" width="120" height="120" style="width:120px;height:120px;flex-shrink:0"></canvas>'
+    + '<div style="flex:1;min-width:140px">'+legendH+'</div>'
+    + '</div>';
+}
+
+/** Canvas に教科別ドーナツ円グラフを描く */
+// [render] drawSubjPie
+function drawSubjPie(cid, entries, tot) {
+  var cv = document.getElementById(cid);
+  if (!cv) return;
+  var dpr = window.devicePixelRatio || 1;
+  var SIZE = 120;
+  cv.width = SIZE * dpr; cv.height = SIZE * dpr;
+  cv.style.width = SIZE + 'px'; cv.style.height = SIZE + 'px';
+  var ctx = cv.getContext('2d');
+  ctx.scale(dpr, dpr);
+  var cx = SIZE / 2, cy = SIZE / 2, R = SIZE / 2 - 6, inner = R * 0.52;
+  var angle = -Math.PI / 2; // 12時から開始
+  // セグメント描画
+  entries.forEach(function(kv){
+    var ms = kv[1];
+    var sweep = (ms / tot) * Math.PI * 2;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, R, angle, angle + sweep);
+    ctx.closePath();
+    ctx.fillStyle = scolor(kv[0]);
+    ctx.fill();
+    // セグメント間のギャップ（白い細線）
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, R, angle, angle + sweep);
+    ctx.closePath();
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    angle += sweep;
+  });
+  // ドーナツの穴（中央を白く抜く）
+  ctx.beginPath();
+  ctx.arc(cx, cy, inner, 0, Math.PI * 2);
+  ctx.fillStyle = '#fff';
+  ctx.fill();
+  // 中央テキスト：合計時間
+  var totalH = Math.floor(tot / CFG.MS._1H);
+  var totalM = Math.floor((tot % CFG.MS._1H) / 60000);
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#1c2a36';
+  ctx.font = 'bold ' + Math.round(14 * dpr / dpr) + 'px sans-serif';
+  ctx.fillText(totalH + 'h' + pad(totalM) + 'm', cx, cy - 7);
+  ctx.fillStyle = '#8aa4b4';
+  ctx.font = (10) + 'px sans-serif';
+  ctx.fillText('今週計', cx, cy + 9);
+}
+
+
+// §8 STUDY HUB ────────────────────────────────
+// 学習セクションのハブページ（タイマー/カレンダー/暗記カードへの入口）
+// [render] 学習ハブページ
+function pStudy() {
+  return pageHeader('◷ 学習')
+    + navCard('stlog', '◈', '勉強時間', '日・週・月・年ごとの学習記録')
+    + navCard('cal',   '◫', 'カレンダー','学習計画・負荷管理')
+    + navCard('tmr',   '◷', 'タイマー',  '学習時間の記録')
+    + navCard('fc',    '✦', '暗記カード','フラッシュカード学習');
+}
+
+// §9a STUDY LOG PAGE ─────────────────────────
+// 日別/週別/月別/年別の学習記録ページ。stLogTab 変数でタブ管理。
+
+// ローカル日付文字列（YYYY-MM-DD）を返す
+// [pure] localDateStr
+function localDateStr(d){
+  return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+}
+// ローカル年月文字列（YYYY-MM）を返す
+// [pure] localMonthStr
+function localMonthStr(d){
+  return d.getFullYear()+'-'+pad(d.getMonth()+1);
+}
+// その週の月曜日のローカル日付文字列を返す
+// [pure] weekKeyOf
+function weekKeyOf(d){
+  var tmp=new Date(d.getFullYear(),d.getMonth(),d.getDate()); // 時刻を0にした複製
+  var dow=tmp.getDay(); // 0=日
+  var diff=dow===0?-6:1-dow; // 月曜に戻す
+  tmp.setDate(tmp.getDate()+diff);
+  return localDateStr(tmp);
+}
+
+// [render] pStLog
+function pStLog(){
+  var tabs=[{k:'day',label:'日別'},{k:'week',label:'週別'},{k:'month',label:'月別'},{k:'year',label:'年別'}];
+  var tabsH=tabs.map(function(t){
+    return'<div class="ttab'+(t.k===stLogTab?' on':'')+'" onclick="stLogTab=\''+t.k+'\';go(\'stlog\')">'+t.label+'</div>';
+  }).join('');
+
+  // セッションをローカル日付でグループ化
+  var sess=S.sessions||[];
+  var groups={};
+  sess.forEach(function(s){
+    if(!s.dur||s.dur<=0)return;
+    var d=new Date(s.ts);
+    var key;
+    if(stLogTab==='day')       key=localDateStr(d);
+    else if(stLogTab==='week') key=weekKeyOf(d);
+    else if(stLogTab==='month')key=localMonthStr(d);
+    else                       key=String(d.getFullYear());
+    if(!groups[key]){groups[key]={total:0,subj:{}};}
+    groups[key].total+=s.dur;
+    groups[key].subj[s.subj]=(groups[key].subj[s.subj]||0)+s.dur;
+  });
+
+  // 表示するキーを絞る（今日・一日前・今週・一週間前・今月・ひと月前・今年・一年前）
+  var _now=new Date();
+  var _allowed=new Set();
+  if(stLogTab==="day"){
+    _allowed.add(localDateStr(_now));
+    var _yd=new Date(_now);_yd.setDate(_yd.getDate()-1);_allowed.add(localDateStr(_yd));
+  } else if(stLogTab==="week"){
+    _allowed.add(weekKeyOf(_now));
+    var _lw=new Date(_now);_lw.setDate(_lw.getDate()-7);_allowed.add(weekKeyOf(_lw));
+  } else if(stLogTab==="month"){
+    _allowed.add(localMonthStr(_now));
+    var _lm=new Date(_now.getFullYear(),_now.getMonth()-1,1);_allowed.add(localMonthStr(_lm));
+  } else {
+    _allowed.add(String(_now.getFullYear()));
+    _allowed.add(String(_now.getFullYear()-1));
+  }
+  // 新しい順にソート
+  var keys=Object.keys(groups).filter(function(k){return _allowed.has(k);}).sort().reverse();
+
+  // ラベル整形
+  function fmtKey(k){
+    if(stLogTab==='day'){
+      var p=k.split('-');
+      return p[0]+'年'+(+p[1])+'月'+(+p[2])+'日';
+    }
+    if(stLogTab==='week'){
+      var ws=new Date(k+'T00:00:00');
+      var we=new Date(ws);we.setDate(ws.getDate()+6);
+      return (ws.getMonth()+1)+'/'+(ws.getDate())+'（月）〜'+(we.getMonth()+1)+'/'+(we.getDate())+'（日）';
+    }
+    if(stLogTab==='month'){var p=k.split('-');return p[0]+'年'+(+p[1])+'月';}
+    return k+'年';
+  }
+  function fmtDur(ms){
+    var h=Math.floor(ms/CFG.MS._1H),m=Math.floor((ms%CFG.MS._1H)/60000),s=Math.floor((ms%60000)/1000);
+    return h>0?(h+'h'+pad(m)+'m'):(m>0?(m+'m'+pad(s)+'s'):(s+'s'));
+  }
+
+  var emptyH='<div style="text-align:center;padding:32px;color:var(--t3);font-size:13px">記録がありません</div>';
+
+  // サマリー（タブ期間内）
+  var totalAll=keys.reduce(function(a,k){return a+groups[k].total;},0);
+  var avgMs=keys.length?Math.round(totalAll/keys.length):0;
+  var unitLabel=stLogTab==='day'?'日数':stLogTab==='week'?'週数':stLogTab==='month'?'月数':'年数';
+  var summaryH='<div class="stats" style="margin-bottom:0">'
+    +'<div class="sc"><div class="sv">'+fmtDur(totalAll)+'</div><div class="sl">合計</div></div>'
+    +'<div class="sc"><div class="sv">'+keys.length+'</div><div class="sl">'+unitLabel+'</div></div>'
+    +'<div class="sc"><div class="sv">'+(keys.length?fmtDur(avgMs):'−')+'</div><div class="sl">平均</div></div>'
+    +'</div>';
+
+  // 期間ブロック：タイトル＋合計時間＋サブ期間折れ線グラフ（タップで値表示）＋教科別円グラフ
+  var blocks=keys.map(function(k){
+    var g=groups[k];
+    var tot=Object.values(g.subj).reduce(function(a,b){return a+b;},0)||1;
+
+    var subChartH='';
+    var chartVals=null,chartLabels=null,chartTitle='';
+
+    if(stLogTab==='week'){
+      var ws=new Date(k+'T00:00:00');
+      chartLabels=['月','火','水','木','金','土','日'];
+      chartTitle='日別学習時間';
+      chartVals=chartLabels.map(function(_,i){
+        var dd=new Date(ws);dd.setDate(ws.getDate()+i);
+        var ds=localDateStr(dd);
+        return sess.filter(function(s){return s.dur>0&&localDateStr(new Date(s.ts))===ds;})
+                   .reduce(function(a,s){return a+s.dur;},0)/CFG.MS._1H;
+      });
+    } else if(stLogTab==='month'){
+      var mp=k.split('-');var yr2=+mp[0],mo2=+mp[1]-1;
+      var firstDay=new Date(yr2,mo2,1),lastDay=new Date(yr2,mo2+1,0);
+      var weekStarts=[];
+      var cur2=new Date(firstDay);
+      var d0=(cur2.getDay()===0)?-6:1-cur2.getDay();
+      cur2.setDate(cur2.getDate()+d0);
+      while(cur2<=lastDay){weekStarts.push(new Date(cur2));cur2.setDate(cur2.getDate()+7);}
+      chartLabels=weekStarts.map(function(ws2){return(ws2.getMonth()+1)+'/'+(ws2.getDate());});
+      chartTitle='週別学習時間';
+      chartVals=weekStarts.map(function(ws2){
+        var we2=new Date(ws2);we2.setDate(ws2.getDate()+6);
+        return sess.filter(function(s){
+          var sd=new Date(s.ts);
+          return s.dur>0&&sd>=ws2&&sd<=new Date(we2.getFullYear(),we2.getMonth(),we2.getDate(),23,59,59);
+        }).reduce(function(a,s){return a+s.dur;},0)/CFG.MS._1H;
+      });
+    } else if(stLogTab==='year'){
+      var yr3=+k;
+      chartLabels=['1','2','3','4','5','6','7','8','9','10','11','12'].map(function(m){return m+'月';});
+      chartTitle='月別学習時間';
+      chartVals=chartLabels.map(function(_,i){
+        var mk=yr3+'-'+pad(i+1);
+        return sess.filter(function(s){return s.dur>0&&localMonthStr(new Date(s.ts))===mk;})
+                   .reduce(function(a,s){return a+s.dur;},0)/CFG.MS._1H;
+      });
+    }
+
+    if(chartVals&&chartLabels){
+      var cid='slc'+(_trendCID++);
+      subChartH='<div style="margin-bottom:14px">'
+        +'<div style="font-size:10px;font-weight:700;color:var(--ac2);letter-spacing:.7px;margin-bottom:6px">'+chartTitle+'</div>'
+        +'<div style="position:relative">'
+        +'<canvas id="'+cid+'" style="width:100%;height:90px;display:block;touch-action:none" height="90"></canvas>'
+        +'<div id="'+cid+'-tt" style="display:none;position:absolute;background:rgba(28,42,54,.88);color:#fff;padding:4px 9px;border-radius:8px;font-size:11px;font-weight:700;white-space:nowrap;pointer-events:none;transform:translateX(-50%);transition:left .1s"></div>'
+        +'</div>'
+        +'<div style="display:flex;margin-top:4px">'
+        +chartLabels.map(function(l){return'<div style="flex:1;text-align:center;font-size:9px;color:var(--t3)">'+l+'</div>';}).join('')
+        +'</div></div>';
+
+      (function(cid,vals,labels){
+        requestAnimationFrame(function(){setTimeout(function(){
+          var cv=document.getElementById(cid);if(!cv)return;
+          var tt=document.getElementById(cid+'-tt');
+          var dpr=window.devicePixelRatio||1;
+          var W=cv.offsetWidth||300,H=90;
+          cv.width=W*dpr;cv.height=H*dpr;cv.style.width=W+'px';cv.style.height=H+'px';
+          var ctx=cv.getContext('2d');ctx.scale(dpr,dpr);
+          var mx=Math.max.apply(null,vals)||1;
+          var pd={t:18,r:10,b:6,l:10},n=vals.length;
+          var gW=W-pd.l-pd.r,gH=H-pd.t-pd.b;
+          var pts=vals.map(function(v,i){return{x:pd.l+(n===1?gW/2:i/(n-1)*gW),y:pd.t+gH-(v/mx*gH),v:v};});
+
+          function draw(activeIdx){
+            ctx.clearRect(0,0,W,H);
+            // グラデーション塗り
+            var grad=ctx.createLinearGradient(0,pd.t,0,pd.t+gH);
+            grad.addColorStop(0,'rgba(76,168,216,0.20)');grad.addColorStop(1,'rgba(76,168,216,0.01)');
+            ctx.beginPath();ctx.moveTo(pts[0].x,pd.t+gH);
+            pts.forEach(function(p){ctx.lineTo(p.x,p.y);});
+            ctx.lineTo(pts[pts.length-1].x,pd.t+gH);
+            ctx.closePath();ctx.fillStyle=grad;ctx.fill();
+            // 折れ線
+            ctx.beginPath();ctx.strokeStyle=CFG.DEFAULT_COLOR;ctx.lineWidth=2;ctx.lineJoin='round';
+            pts.forEach(function(p,i){i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y);});
+            ctx.stroke();
+            // ドット
+            pts.forEach(function(p,i){
+              var isActive=(i===activeIdx);
+              ctx.beginPath();ctx.arc(p.x,p.y,isActive?6:3.5,0,Math.PI*2);
+              ctx.fillStyle=isActive?'#fff':CFG.DEFAULT_COLOR;ctx.fill();
+              ctx.strokeStyle=isActive?CFG.DEFAULT_COLOR:'#fff';ctx.lineWidth=isActive?2.5:1.5;ctx.stroke();
+              // 非タップ時：値ラベルを常時表示（0は表示しない）
+              if(!isActive&&p.v>0){
+                var lbl=p.v>=1?p.v.toFixed(1)+'h':Math.round(p.v*60)+'m';
+                ctx.fillStyle=CFG.DEFAULT_COLOR;ctx.font='bold 8px sans-serif';ctx.textAlign='center';
+                ctx.fillText(lbl,p.x,p.y-8);
+              }
+            });
+            // アクティブ時：縦ガイドライン
+            if(activeIdx>=0){
+              var ap=pts[activeIdx];
+              ctx.setLineDash([3,3]);ctx.strokeStyle='rgba(76,168,216,0.5)';ctx.lineWidth=1;
+              ctx.beginPath();ctx.moveTo(ap.x,pd.t);ctx.lineTo(ap.x,pd.t+gH);ctx.stroke();
+              ctx.setLineDash([]);
+            }
+          }
+
+          draw(-1);
+
+          function getIdx(ex){
+            var rect=cv.getBoundingClientRect();
+            var cx=(ex-rect.left);
+            var best=-1,bestD=999;
+            pts.forEach(function(p,i){var d=Math.abs(p.x-cx);if(d<bestD){bestD=d;best=i;}});
+            return(bestD<(gW/n+12))?best:-1;
+          }
+          function showTip(idx){
+            if(!tt)return;
+            if(idx<0){tt.style.display='none';draw(-1);return;}
+            var p=pts[idx];
+            var lbl=p.v>=1?p.v.toFixed(2)+'h':p.v>0?Math.round(p.v*60)+'m':'記録なし';
+            tt.textContent=labels[idx]+' '+lbl;
+            var pct=(p.x/W*100);
+            tt.style.left=pct+'%';
+            tt.style.top=(p.y/H*100-18)+'%';
+            tt.style.display='block';
+            draw(idx);
+          }
+
+          // マウス
+          cv.addEventListener('mousemove',function(e){showTip(getIdx(e.clientX));});
+          cv.addEventListener('mouseleave',function(){showTip(-1);});
+          // タッチ
+          cv.addEventListener('touchstart',function(e){e.preventDefault();showTip(getIdx(e.touches[0].clientX));},{passive:false});
+          cv.addEventListener('touchmove',function(e){e.preventDefault();showTip(getIdx(e.touches[0].clientX));},{passive:false});
+          cv.addEventListener('touchend',function(){setTimeout(function(){showTip(-1);},1200);});
+        },20);});
+      })(cid,chartVals,chartLabels);
+    }
+
+    return'<div class="card" style="margin-bottom:12px">'
+      +'<div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px">'
+      +'<div style="font-size:13px;font-weight:800;color:var(--t1)">'+fmtKey(k)+'</div>'
+      +'<div style="font-size:18px;font-weight:800;color:var(--ac2);font-variant-numeric:tabular-nums">'+fmtDur(g.total)+'</div>'
+      +'</div>'
+      +subChartH
+      +buildSubjPieHTML(g.subj,tot)
+      +'</div>';
+  }).join('');
+
+  return pageHeader('◈ 勉強時間','学習時間の記録・分析',backBtn('study','学習'))
+    +'<div class="ttabs">'+tabsH+'</div>'
+    +'<div class="card">'+summaryH+'</div>'
+    +(keys.length?blocks:emptyH);
+}
+// [render] renderStLogCharts
+function renderStLogCharts(){}
+// [render] 成績ハブページ
+function pGrades() {
+  const rounds = S.rounds || [];
+  return pageHeader('◎ 成績')
+    + navCard('an',  '◎',  'テスト分析', `${rounds.length}件記録済み`)
+    + navCard('bdg', '🏅', '実績',       `${S.earnedBadges.length}/${BADGE_DEFS.length} 解除済`);
+}
+
+// §9b HOME ───────────────────────────────────
+// ホーム画面（今日の学習・今週トレンド・タスク・教科バランス・最近の実績）
+// [render] pHome
+function pHome(){
+  const n=new Date();
+  const comp=Object.values(S.skills).reduce((a,arr)=>a+arr.filter(sk=>sk.status==='done').length,0);
+  const lds=wkDates().map(calcLoad);
+  // 今日の学習時間・今週の学習時間
+  const todayMs=S.todayMs||0;
+  const weekTotalMs=(S.weekMs||[]).reduce((a,b)=>a+b,0);
+  // 今日の予定（タスク完了ボタン付き）
+  const evs=(S.events||[]).filter(e=>e.date===today());
+  const evH=evs.length?evs.map((e,gi)=>{
+    const realIdx=S.events.indexOf(e);
+    const done=!!e.done;
+    return`<div class="ev" style="opacity:${done?0.55:1}">
+      <div class="ev-bar" style="background:${scolor(e.subj)};min-height:36px;height:auto;${done?'background:#ccc':''}"></div>
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:600;${done?'text-decoration:line-through;color:var(--t3)':''}">${e.title}</div>
+        <div style="font-size:11px;color:var(--t3)">${e.subj} ${'★'.repeat(e.load||1)}${done?' · ✅ 完了':''}</div>
+      </div>
+      <button class="btn ${done?'bs':'bp'} sm" onclick="toggleEvDone(${realIdx})" style="padding:5px 10px;font-size:11px;flex-shrink:0">${done?'↩ 戻す':'✓ 完了'}</button>
+    </div>`;
+  }).join(''):'<div style="color:var(--t3);font-size:12px;text-align:center;padding:10px">予定なし</div>';
+  // 教科別円グラフ（今週）
+  const ws=new Date();ws.setDate(ws.getDate()-ws.getDay());const we=new Date(ws);we.setDate(ws.getDate()+6);
+  const sd={};(S.sessions||[]).filter(s=>{const d=new Date(s.ts);return d>=ws&&d<=we;}).forEach(s=>{sd[s.subj]=(sd[s.subj]||0)+s.dur;});
+  const tot=Object.values(sd).reduce((a,b)=>a+b,0)||1;
+  const balH=!Object.keys(sd).length?'<div style="font-size:12px;color:var(--t3)">まだ記録なし</div>':buildSubjPieHTML(sd,tot);
+  // 最近の実績
+  const recent=BADGE_DEFS.filter(b=>S.earnedBadges.includes(b.id)).slice(-3);
+  const badgeH=recent.length?recent.map(b=>`<span title="${b.name}" style="font-size:22px">${b.icon}</span>`).join(''):'<span style="font-size:12px;color:var(--t3)">まだバッジなし</span>';
+  return`<div class="ph"><div><div class="pt">💫 ホーム</div><div class="ps">${n.toLocaleDateString('ja-JP',{year:'numeric',month:'long',day:'numeric',weekday:'long'})}</div></div><div class="bdg ba">✦ ${S.streak||0}日連続</div></div>
+<div class="stats">
+  <div class="sc"><div class="sv">${fmtMsClock(todayMs)}</div><div class="sl">今日の学習</div></div>
+  <div class="sc"><div class="sv">${fmtMs(weekTotalMs)}</div><div class="sl">今週の学習</div></div>
+  <div class="sc"><div class="sv">${comp}</div><div class="sl">習得スキル</div></div>
+</div>
+<div class="card" style="border-color:var(--ac)"><div class="ct">今週の学習負荷トレンド</div>${trendBarsHTML(lds)}</div>
+<div class="card"><div class="ct">今日のタスク</div>${evH}<div style="margin-top:10px;text-align:right"><button class="btn bs sm" onclick="go('cal')" style="font-size:11px">カレンダーで管理 →</button></div></div>
+<div class="card"><div class="ct">教科別バランス（今週）</div>${balH}</div>
+<div class="card" onclick="go('bdg')" style="cursor:pointer"><div class="ct">獲得実績</div><div style="display:flex;gap:10px;align-items:center">${badgeH}<span style="font-size:11px;color:var(--t3);margin-left:auto">${S.earnedBadges.length}/${BADGE_DEFS.length} →</span></div></div>`;
+}
+
+// §10 CALENDAR ───────────────────────────────
+// 月次カレンダー表示・予定(event)の追加/編集/削除/完了管理
+// カレンダー状態をオブジェクトに集約（後方互換のためletエイリアスも維持）
+const calState={year:new Date().getFullYear(),month:new Date().getMonth(),sel:today()};
+// 既存コードとの後方互換エイリアス（参照はcalStateに委譲）
+Object.defineProperty(window,'calY',{get:()=>calState.year, set:(v)=>{calState.year=v;}});
+Object.defineProperty(window,'calM',{get:()=>calState.month,set:(v)=>{calState.month=v;}});
+Object.defineProperty(window,'selDate',{get:()=>calState.sel,  set:(v)=>{calState.sel=v;}});
+// [render] pCal
+function pCal(){
+  return pageHeader('◫ カレンダー','学習計画・負荷管理',
+    backBtn('study','学習'),
+    '<button class="btn bs sm" onclick="openM(\'msubj\')">＋ 教科</button>'
+    +'<button class="btn bp sm" onclick="openEvModal()">＋ 追加</button>')
+  +'<div class="card" style="padding:12px">'
+  +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">'
+  +'<button class="btn bs sm" onclick="calNav(-1)">◀</button>'
+  +'<b id="callbl" style="font-size:14px"></b>'
+  +'<button class="btn bs sm" onclick="calNav(1)">▶</button>'
+  +'</div>'
+  +'<div class="cg" style="margin-bottom:3px">'
+  +'<div class="cdh" style="color:#d04848">日</div>'
+  +'<div class="cdh">月</div><div class="cdh">火</div><div class="cdh">水</div>'
+  +'<div class="cdh">木</div><div class="cdh">金</div>'
+  +'<div class="cdh" style="color:#4a80c8">土</div>'
+  +'</div>'
+  +'<div class="cg" id="calgrid"></div></div>'
+  +'<div class="card">'
+  +'<div class="ct" id="caldlbl">選択日</div>'
+  +'<div id="calevs"></div>'
+  +'<div style="margin-top:12px">'
+  +'<div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--t2);margin-bottom:6px">'
+  +'<span>この日の負荷（予定＋学習）</span><span class="bdg" id="callbdg">0</span></div>'
+  +'<div class="lb" style="height:10px"><div class="lbf" id="callbf" style="width:0%;background:var(--ok)"></div></div>'
+  +'</div></div>';
+}
+
+// ── §10 CALENDAR  renderCalGrid: 日付セルに学習時間・負荷・未完了タスクを表示 ──
+// [render] renderCalGrid
+function renderCalGrid(){
+  var lbl=document.getElementById('callbl');
+  if(!lbl)return;
+  lbl.textContent=calY+'年'+(calM+1)+'月';
+  var first=new Date(calY,calM,1),last=new Date(calY,calM+1,0);
+  var g=document.getElementById('calgrid');
+  if(!g)return;
+  g.innerHTML='';
+  var td=today();
+
+  // 先月の空白セル
+  for(var i=0;i<first.getDay();i++){
+    var em=document.createElement('div');
+    em.className='cd om';
+    em.textContent=new Date(calY,calM,-first.getDay()+i+1).getDate();
+    g.appendChild(em);
+  }
+
+  for(var d=1;d<=last.getDate();d++){
+    var ds=calY+'-'+pad(calM+1)+'-'+pad(d);
+    var el=document.createElement('div');
+    var cls='cd';
+    if(ds===td) cls+=' today';
+    else if(ds===selDate) cls+=' sel';
+    el.className=cls;
+
+    // ① 日付番号
+    var dn=document.createElement('div');
+    dn.style.fontWeight='700';
+    dn.textContent=d;
+    el.appendChild(dn);
+
+    // ② 学習時間（当日セッション合計）
+    var sessMs=(S.sessions||[])
+      .filter(function(s){return s.dur>0&&localDateStr(new Date(s.ts))===ds;})
+      .reduce(function(a,s){return a+s.dur;},0);
+    if(sessMs>0){
+      var hh=Math.floor(sessMs/CFG.MS._1H),mm=Math.floor((sessMs%CFG.MS._1H)/60000);
+      var tl=document.createElement('div');
+      tl.className='cd-mini tm';
+      tl.textContent=(hh>0?hh+'h':'')+mm+'m';
+      el.appendChild(tl);
+    }
+
+    // ③ 負荷値
+    var load=calcLoad(ds);
+    if(load>0){
+      var ll=document.createElement('div');
+      var ldCls=load>=8?'ld-bad':load>=4?'ld-warn':'ld-ok';
+      ll.className='cd-mini '+ldCls;
+      ll.textContent='負'+load;
+      el.appendChild(ll);
+    }
+
+    // ④ 未完了タスク数
+    var incomplete=(S.events||[]).filter(function(ev){
+      return ev.date===ds&&!ev.done;
+    }).length;
+    if(incomplete>0){
+      var tsk=document.createElement('div');
+      tsk.className='cd-mini tsk';
+      tsk.textContent='□'+incomplete;
+      el.appendChild(tsk);
+    }
+
+    el.onclick=(function(ds_){
+      return function(){selDate=ds_;renderCalGrid();renderCalDay();};
+    })(ds);
+    g.appendChild(el);
+  }
+  renderCalDay();
+}
+// [render] renderCalDay
+function renderCalDay(){
+  const evs=(S.events||[]).filter(e=>e.date===selDate);
+  const dp=selDate.split('-');
+  const dl=document.getElementById('caldlbl');if(dl)dl.textContent=dp[0]+'年'+parseInt(dp[1])+'月'+parseInt(dp[2])+'日';
+  const cel=document.getElementById('calevs');if(!cel)return;
+  cel.innerHTML=evs.length?evs.map((e,i)=>{
+    const realIdx=S.events.indexOf(e);
+    const done=!!e.done;
+    return`<div class="ev" style="opacity:${done?0.55:1}">
+      <div class="ev-bar" style="background:${done?'#ccc':scolor(e.subj)};min-height:36px;height:auto"></div>
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:600;${done?'text-decoration:line-through;color:var(--t3)':''}">${e.title}</div>
+        <div style="font-size:11px;color:var(--t3)">${e.subj} ${'★'.repeat(e.load||1)}${done?' · ✅':''}</div>
+      </div>
+      <div style="display:flex;gap:4px;flex-shrink:0">
+        <button class="btn ${done?'bs':'bp'} sm ic" onclick="toggleEvDone(${realIdx})" style="padding:4px 7px;font-size:11px">${done?'↩':'✓'}</button>
+        <button class="btn bs sm ic" onclick="editEv(${i})" style="padding:5px 8px">✎</button>
+        <button class="btn bd sm ic" onclick="delEv(${i})" style="padding:5px 8px">✕</button>
+      </div>
+    </div>`;
+  }).join(''):'<div style="color:var(--t3);font-size:12px;text-align:center;padding:10px">予定なし</div>';
+  const load=calcLoad(selDate);
+  const pct=Math.min(100,Math.max(load*8,load>0?10:0));
+  const lbf=document.getElementById('callbf');
+  if(lbf){lbf.style.width=pct+'%';lbf.style.background=lcolor(load);}
+  const lbdg=document.getElementById('callbdg');
+  if(lbdg){lbdg.textContent='負荷 '+load;lbdg.className='bdg '+(load>=8?'bbd':load>=4?'bwn':'bok');}
+}
+// [event] calNav
+function calNav(d){calM+=d;if(calM<0){calM=11;calY--;}if(calM>11){calM=0;calY++;}renderCalGrid();}
+// [event] openEvModal
+function openEvModal(idx=-1){
+  editEvIdx=idx;
+  const title=document.getElementById('mev-title');
+  const evd=document.getElementById('evd');
+  const evt=document.getElementById('evt');
+  const evl=document.getElementById('evl');
+  const evlv=document.getElementById('evlv');
+  if(idx>=0){
+    const dayEvs=(S.events||[]).filter(e=>e.date===selDate);
+    const ev=dayEvs[idx];
+    if(ev){title.textContent='予定を編集';evt.value=ev.title;evd.value=ev.date;evl.value=ev.load||2;evlv.textContent=ev.load||2;fillSels();document.getElementById('evs').value=ev.subj;}
+  }else{title.textContent='予定を追加';evt.value='';evd.value=selDate||today();evl.value=2;evlv.textContent=2;}
+  openM('mev');
+}
+// [event] saveEv
+function saveEv(){
+  const t=sanitizeStr(document.getElementById('evt').value.trim());if(!t){toast('タイトルを入力してください');return;}
+  const ev={title:t,date:document.getElementById('evd').value,subj:sanitizeStr(document.getElementById('evs').value),load:parseInt(document.getElementById('evl').value)};
+  if(editEvIdx>=0){
+    const dayEvs=(S.events||[]).filter(e=>e.date===selDate);
+    const gi=S.events.indexOf(dayEvs[editEvIdx]);
+    if(gi>=0)S.events[gi]=ev;
+    editEvIdx=-1;
+  }else{S.events.push(ev);}
+  saveS();closeM('mev');toast('予定を保存');if(curP==='cal')renderCalGrid();else if(curP==='home')go('home');
+}
+// [event] editEv
+function editEv(i){openEvModal(i);}
+// [event] delEv
+function delEv(i){const evs=(S.events||[]).filter(e=>e.date===selDate);const gi=S.events.indexOf(evs[i]);if(gi!==-1)S.events.splice(gi,1);saveS();renderCalGrid();renderCalDay();toast('削除しました');}
+// [event] toggleEvDone
+function toggleEvDone(realIdx){
+  if(realIdx<0||realIdx>=S.events.length)return;
+  S.events[realIdx].done=!S.events[realIdx].done;
+  saveS();checkBadges();
+  // 両方のビューを更新
+  if(curP==='home')go('home');
+  else{renderCalGrid();renderCalDay();}
+  toast(S.events[realIdx].done?'✅ 完了にしました':'↩ 未完了に戻しました');
+}
+
+// §11 TIMER ──────────────────────────────────
+// 学習タイマー。開始/停止でセッションを自動記録。バックグラウンド継続対応。
+// タイマー状態をオブジェクトに集約（⑤）
+const timerState={run:false,ms:0,start:0,iv:null,subj:'',cnt:0};
+// 後方互換エイリアス
+Object.defineProperty(window,'tRun', {get:()=>timerState.run,  set:(v)=>{timerState.run=v;}});
+Object.defineProperty(window,'tMs',  {get:()=>timerState.ms,   set:(v)=>{timerState.ms=v;}});
+Object.defineProperty(window,'tStart',{get:()=>timerState.start,set:(v)=>{timerState.start=v;}});
+Object.defineProperty(window,'tIv',  {get:()=>timerState.iv,   set:(v)=>{timerState.iv=v;}});
+Object.defineProperty(window,'tSubj',{get:()=>timerState.subj, set:(v)=>{timerState.subj=v;}});
+Object.defineProperty(window,'tCnt', {get:()=>timerState.cnt,  set:(v)=>{timerState.cnt=v;}});
+
+/**
+ * セッション共通記録関数（①②修正）
+ * streak・weekMs・todayMs を全て localDateStr ベースで計算し、
+ * saveSess / fcStopTimer / rateFC の重複ロジックをここに集約。
+ */
+// [event] recordSession
+function recordSession(subj, dur){
+  if(!subj||dur<=CFG.MIN_SESSION_MS) return;
+  S.sessions=S.sessions||[];
+  S.sessions.push({subj:subj,dur:dur,ts:Date.now()});
+  // weekMs
+  var dow=new Date().getDay();
+  S.weekMs=S.weekMs||[0,0,0,0,0,0,0];
+  S.weekMs[dow]=(S.weekMs[dow]||0)+dur;
+  // streak（localDateStr ベース — UTC誤差なし）
+  var tdStr=localDateStr(new Date());
+  if(S.lastDate!==tdStr){
+    var yesterday=new Date();yesterday.setDate(yesterday.getDate()-1);
+    S.streak=S.lastDate===localDateStr(yesterday)?(S.streak||0)+1:1;
+    S.lastDate=tdStr;
+  }
+  // todayMs（localDateStr ベースで再集計）
+  S.todayMs=S.sessions.filter(function(s){
+    return localDateStr(new Date(s.ts))===tdStr;
+  }).reduce(function(a,s){return a+s.dur;},0);
+  S.todayMs_base=S.todayMs;
+  updTime();
+}
+// [render] pTmr
+function pTmr(){
+  var chips=(S.subjects||[]).map(function(s){
+    var on=(s===tSubj)?' on':'';
+    var sc=scolor(s);
+    var style=on?'border-color:'+sc+';color:'+sc:'';
+    return '<div class="chip'+on+'" style="'+style+'" onclick="selTS(this,\''+
+      s.replace(/\\/g,'\\\\').replace(/'/g,'\\\'')+'\')" > '+s+'</div>';
+  }).join('');
+
+  var startInfoHtml='';
+  if(tStart>0){
+    var st=new Date(tStart);
+    startInfoHtml='<div style="font-size:12px;color:var(--t3);margin-top:4px">'
+      +'開始: '+pad(st.getHours())+':'+pad(st.getMinutes())+':'+pad(st.getSeconds())
+      +'</div>';
+  }
+  var elapsed=tStart>0?(Date.now()-tStart):0;
+  var runCls=tRun?'run':tStart>0?'pau':'';
+  var btnBg=tRun?'var(--warn)':'var(--ac)';
+  var btnIcon=tRun?'&#9646;&#9646;':'&#9654;';
+  var hint=(tStart>0&&!tRun)
+    ?'▶ で再開 / ⏸ で停止して記録'
+    :'⏸ 停止で自動記録 · バックグラウンドでも継続';
+
+  return pageHeader('◷ タイマー','',backBtn('study','学習'))
+    +'<div class="card"><div class="ct">教科を選択</div>'
+    +'<div class="chips" id="tchips">'+chips+'</div></div>'
+    +'<div class="card" style="text-align:center">'
+    +'<div class="tdisp '+runCls+'" id="tdisp" style="padding:28px 0 4px">'
+    +fmtMsClock(elapsed)+'</div>'
+    +'<div style="font-size:12px;color:var(--t3);margin-bottom:4px" id="tslbl">'
+    +(tSubj||'教科を選択')+'</div>'
+    +startInfoHtml
+    +'<div style="margin-top:16px;margin-bottom:20px">'
+    +'<button onclick="toggleT()" id="tbtn" style="width:80px;height:80px;'
+    +'border-radius:50%;border:none;font-size:30px;cursor:pointer;background:'
+    +btnBg+';color:#fff;display:inline-flex;align-items:center;'
+    +'justify-content:center;box-shadow:0 6px 24px rgba(76,168,216,.4);'
+    +'transition:background .2s,box-shadow .2s">'+btnIcon+'</button>'
+    +'</div>'
+    +'<div style="font-size:13px;color:var(--t2)">今日の累積: '
+    +'<b id="t-today-disp" style="color:var(--ac2);font-size:16px">'
+    +fmtMsClock(S.todayMs)+'</b></div>'
+    +'<div style="margin-top:6px;font-size:11px;color:var(--t3)">'+hint+'</div>'
+    +'</div>';
+}
+
+// [event] selTS
+function selTS(el, s) {
+  tSubj = s;
+  var sc = scolor(s);
+  document.querySelectorAll('#tchips .chip').forEach(function(c) {
+    c.classList.toggle('on', c === el);
+    if (c === el) { c.style.borderColor = sc; c.style.color = sc; }
+    else          { c.style.borderColor = '';  c.style.color = '';  }
+  });
+  var l = document.getElementById('tslbl');
+  if (l) { l.textContent = s; l.style.color = sc; }
+}
+// [event] toggleT
+function toggleT(){
+  if(tRun){
+    // STOP: 停止時刻 − 開始時刻 = 経過時間
+    tRun=false;clearInterval(tIv);tIv=null;
+    var elapsed=Date.now()-tStart;
+    if(elapsed>CFG.MIN_SESSION_MS){
+      saveSess(elapsed);
+    } else {
+      tStart=0;saveS();
+      var disp=document.getElementById('tdisp');
+      if(disp){disp.textContent='00:00:00';disp.className='tdisp';}
+    }
+    try{localStorage.removeItem(CFG.TIMER_KEY);}catch(e){}
+  } else {
+    // START: 新規のときだけ現在時刻をセット（復元時はtStartが残っている）
+    if(tStart===0) tStart=Date.now();
+    S.todayMs_base=S.todayMs||0;
+    tRun=true;
+    clearInterval(tIv);
+    tIv=setInterval(tickT,500);
+    try{localStorage.setItem(CFG.TIMER_KEY,JSON.stringify({ts:tStart,subj:tSubj}));}catch(e){}
+  }
+  var btn=document.getElementById('tbtn');
+  if(btn){btn.innerHTML=tRun?'&#9646;&#9646;':'&#9654;';btn.style.background=tRun?'var(--warn)':'var(--ac)';}
+  var disp=document.getElementById('tdisp');
+  if(disp) disp.className='tdisp '+(tRun?'run':tStart>0?'pau':'');
+  _updateStartLabel();
+}
+
+// 開始時刻ラベルをDOM上で更新
+function _updateStartLabel(){
+  var disp=document.getElementById('tdisp');
+  if(!disp)return;
+  var old=document.getElementById('t-start-label');
+  if(old)old.remove();
+  if(tStart>0){
+    var st=new Date(tStart);
+    var lbl=document.createElement('div');
+    lbl.id='t-start-label';
+    lbl.style.cssText='font-size:12px;color:var(--t3);margin-top:4px;text-align:center';
+    lbl.textContent='開始: '+pad(st.getHours())+':'+pad(st.getMinutes())+':'+pad(st.getSeconds());
+    disp.parentNode.insertBefore(lbl,disp.nextSibling);
+  }
+}
+
+// [render] tickT
+function tickT(){
+  var elapsed=tStart>0?Date.now()-tStart:0;
+  var d=document.getElementById('tdisp');
+  if(d) d.textContent=fmtMsClock(elapsed);
+  var base=S.todayMs_base||0;
+  var total=fmtMsClock(base+elapsed);
+  var el=document.getElementById('t-today-disp');if(el)el.textContent=total;
+  var td=document.getElementById('sbt-d');if(td)td.textContent=total;
+  var tm=document.getElementById('sbt-m');if(tm)tm.textContent=total;
+}
+
+// elapsed を引数で受け取るように変更（toggleT から呼ぶ）
+// [event] saveSess
+function saveSess(elapsed){
+  var sessionDur=elapsed||0;
+  recordSession(tSubj,sessionDur);
+  tStart=0;
+  var disp=document.getElementById('tdisp');
+  if(disp){disp.textContent='00:00:00';disp.className='tdisp';}
+  var btn=document.getElementById('tbtn');
+  if(btn){btn.innerHTML='&#9654;';btn.style.background='var(--ac)';}
+  var lbl=document.getElementById('t-start-label');if(lbl)lbl.remove();
+  saveS();checkBadges();toast(fmtMsClock(sessionDur)+' 記録');
+  if(curP==='home')go('home');
+  else if(curP==='tmr')go('tmr');
+}
+
+// v4: 上限なし・アプリ再起動時に自動でタイマー再開
+// [event] restoreTimer
+function restoreTimer(){
+  try{
+    var stored=localStorage.getItem(CFG.TIMER_KEY);
+    if(!stored)return;
+    var obj=JSON.parse(stored);
+    var ts=obj.ts,subj=obj.subj;
+    var elapsed=Date.now()-ts;
+    if(elapsed<=0)return;
+    // 開始時刻を復元し、そのままタイマーを再開（上限なし）
+    tStart=ts;
+    tSubj=subj||tSubj;
+    tRun=true;
+    S.todayMs_base=S.todayMs||0;
+    clearInterval(tIv);
+    tIv=setInterval(tickT,500);
+    var disp=document.getElementById('tdisp');
+    if(disp){disp.textContent=fmtMsClock(elapsed);disp.className='tdisp run';}
+    var btn=document.getElementById('tbtn');
+    if(btn){btn.innerHTML='&#9646;&#9646;';btn.style.background='var(--warn)';}
+    toast('タイマーを復元して再開中（'+fmtMsClock(elapsed)+'経過）— ⏸ で停止して記録');
+  }catch(e){}
+}
+
+
+// §12 FLASHCARDS ─────────────────────────────
+// 暗記カード（デッキ管理・学習モード・正解/不正解判定・スコア記録）
+// FC study timerfunction isDue(c){if(!c.lastReview)return true;const t=(Date.now()-c.lastReview)/CFG.MS._1DAY;const st=c.stability||1;return Math.exp(-t/st)<0.7;}// R<70% = due
+function isNew2(c){return!c.reps||c.reps===0;}
+function buildFCQ(cards){
+  let arr;
+  if(fcStudyMode==='rec')arr=cards.filter(isDue);
+  else if(fcStudyMode==='new')arr=cards.filter(isNew2);
+  else arr=[...cards];
+  for(let i=arr.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]];}
+  return arr;
+}
+// [render] pFC
+function pFC(){
+  if(curDk>=0&&curDk<(S.decks||[]).length){
+    if(fcQueue&&fcQueue.length>0)return pFCStudy();
+    return pFCSetup();
+  }
+  return pFCList();
+}
+// [render] pFC
+function pFCList(){
+  const decks=S.decks||[];
+  // Inline add form always visible at top
+  const addForm=`<div class="fc-add-bar">
+  <div class="ct">新しいデッキを作成</div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+    <div class="fg" style="flex:1;min-width:120px;margin-bottom:0"><label>デッキ名</label><input id="dkn-inline" placeholder="例：英単語 Level 1"></div>
+    <div class="fg" style="width:120px;flex-shrink:0;margin-bottom:0"><label>教科</label><select id="dks-inline">${(S.subjects||[]).map(s=>`<option value="${s}">${s}</option>`).join('')}</select></div>
+    <button class="btn bp sm" onclick="saveDkInline()" style="margin-bottom:0;align-self:flex-end">作成</button>
+  </div></div>`;
+  const dkH=decks.length?decks.map((d,i)=>{
+    const all=d.cards||[],due=all.filter(isDue).length,newC=all.filter(isNew2).length,mast=all.filter(c=>(c.stability||0)>=21).length;
+    return`<div class="dki" onclick="startDk(${i})"><div><div style="font-size:14px;font-weight:700">${d.name}</div><div style="font-size:11px;color:var(--t3)">${d.subj} · ${all.length}枚 · 復習推奨: <b style="color:${due>0?'var(--bad)':'var(--ok)'}">${due}</b> · 未学習: ${newC}</div></div><div style="display:flex;align-items:center;gap:8px"><div class="bdg ba">${all.length?Math.round(mast/all.length*100):0}%習得</div><button class="btn bd sm ic" onclick="event.stopPropagation();delDk(${i})" style="padding:4px 8px;font-size:11px">✕</button></div></div>`;
+  }).join(''):'<div style="color:var(--t3);font-size:13px;text-align:center;padding:24px">デッキがありません</div>';
+  return`<div class="ph"><div style="display:flex;align-items:center;gap:8px"><button class="btn bs sm" onclick="go('study')" style="padding:5px 10px">← 学習</button><div class="pt">✦ 暗記カード</div></div></div>${addForm}${dkH}`;
+}
+function saveDkInline(){
+  const n=(document.getElementById('dkn-inline')&&document.getElementById('dkn-inline').value?document.getElementById('dkn-inline').value.trim():'');if(!n){toast('デッキ名を入力してください');return;}
+  const s=(document.getElementById('dks-inline')&&document.getElementById('dks-inline').value)||S.subjects[0];
+  S.decks=S.decks||[];S.decks.push({name:n,subj:s,cards:[]});
+  saveS();toast('デッキ作成');go('fc');
+}
+// [render] pFC
+function pFCSetup(){
+  const deck=S.decks[curDk];
+  const all=deck.cards||[];
+  const due=all.filter(isDue).length;const newC=all.filter(isNew2).length;
+  const modes=[
+    {k:'all',label:'全て',cnt:all.length,desc:'すべてのカードをシャッフル'},
+    {k:'rec',label:'おすすめ',cnt:due,desc:'忘却曲線に基づく復習推奨カード'},
+    {k:'new',label:'未学習',cnt:newC,desc:'まだ一度も学習していないカード'},
+  ];
+  const modeH=modes.map(m=>`<button class="btn ${fcStudyMode===m.k?'bp':'bs'}" onclick="fcStudyMode='${m.k}';go('fc')" style="display:flex;justify-content:space-between;align-items:center;width:100%;margin-bottom:8px;padding:12px 14px"><span style="text-align:left"><b>${m.label}</b><br><span style="font-size:11px;opacity:.75">${m.desc}</span></span><span style="font-size:16px;font-weight:800">${m.cnt}枚</span></button>`).join('');
+  const dirH=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+  <button class="btn ${fcDirection==='normal'?'bp':'bs'}" onclick="fcDirection='normal';go('fc')" style="flex-direction:column;gap:4px;padding:12px 8px;justify-content:center;align-items:center"><span style="font-size:18px">▶</span><span style="font-size:12px">問題 → 答え</span></button>
+  <button class="btn ${fcDirection==='reverse'?'bp':'bs'}" onclick="fcDirection='reverse';go('fc')" style="flex-direction:column;gap:4px;padding:12px 8px;justify-content:center;align-items:center"><span style="font-size:18px">◀</span><span style="font-size:12px">答え → 問題</span></button>
+  </div>`;
+  return`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+  <button class="btn bs sm" onclick="curDk=-1;go('fc')">← 戻る</button><b>${deck.name}</b><button class="btn bp sm" onclick="openM('mcard')">+ カード</button></div>
+  <div class="card"><div class="ct">出題方向</div>${dirH}</div>
+  <div class="card"><div class="ct">出題範囲</div>${modeH}</div>
+  <button class="btn bp" style="width:100%;padding:14px;font-size:15px;justify-content:center" onclick="startStudy()">▶ 学習開始</button>`;
+}
+function startStudy(){if(curDk<0)return;fcQueue=buildFCQ(S.decks[curDk].cards||[]);fcQIdx=0;fcFlipped=false;if(!fcQueue.length){toast('このモードにカードがありません');return;}fcTimerStart=Date.now();fcTimerSubj=S.decks[curDk].subj||tSubj||(S.subjects||[])[0]||'';go('fc');}
+function fcStopTimer(){
+  if(fcTimerStart>0){
+    var fcDur=Date.now()-fcTimerStart;
+    var fcSub=fcTimerSubj||(S.decks[curDk]&&S.decks[curDk].subj)||tSubj||(S.subjects||[])[0]||'';
+    if(fcDur>CFG.MIN_SESSION_MS&&curDk>=0){
+      recordSession(fcSub, fcDur);
+      saveS();toast(fmtMsClock(fcDur)+' 暗記カード記録');
+    }
+    fcTimerStart=0;fcTimerSubj='';
+  }
+}
+// [event] startDk
+function startDk(i){curDk=i;fcStudyMode='all';fcDirection='normal';fcQueue=[];fcQIdx=0;go('fc');}
+// [render] pFC
+function pFCStudy(){
+  const deck=S.decks[curDk];const card=fcQueue[fcQIdx];const pct=fcQueue.length?fcQIdx/fcQueue.length*100:0;
+  const qText=card?(fcDirection==='reverse'?card.a:card.q):'終了';
+  const aText=card?(fcDirection==='reverse'?card.q:card.a):'−';
+  const qlbl=fcDirection==='reverse'?'ANSWER':'QUESTION';
+  const albl=fcDirection==='reverse'?'QUESTION':'ANSWER';
+  let memInfo='';
+  if(card&&card.lastReview){const R=Math.round(Math.exp(-(Date.now()-card.lastReview)/CFG.MS._1DAY/(card.stability||1))*100);memInfo=`<span style="background:var(--acbg);border-radius:12px;padding:3px 8px">記憶度: ${R}%</span>`;}
+  return`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+<button class="btn bs sm" onclick="fcStopTimer();fcQueue=[];go('fc')">← 設定</button><b>${deck.name}</b><button class="btn bp sm" onclick="openM('mcard')">+ カード</button></div>
+<div class="fcprog"><div class="fcpb"><div class="fcpf" id="fcpf" style="width:${pct}%"></div></div><span id="fcpn">${fcQIdx}/${fcQueue.length}</span></div>
+<div class="fcw"><div class="fcc ${fcFlipped?'flip':''}" id="fcc" onclick="flipFC()">
+<div class="fcf fcf-fr"><div class="fclbl">${qlbl}</div><div class="fctxt">${qText}</div></div>
+<div class="fcf fcf-bk"><div class="fclbl">${albl}</div><div class="fctxt">${aText}</div></div>
+</div></div>
+<div style="text-align:center;font-size:11px;color:var(--t3);margin-bottom:10px">タップで答えを確認</div>
+<div class="fcbtns" id="fcans" style="display:${fcFlipped?'flex':'none'}">
+<button class="fb fbok" onclick="rateFC('ok')">○ 正解</button>
+<button class="fb fbng" onclick="rateFC('ng')">✗ 不正解</button>
+<button class="fb fbsk" onclick="rateFC('skip')">→ スキップ</button>
+</div>
+<div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:8px;font-size:11px;color:var(--t2)">${memInfo}</div>
+<div style="text-align:center;margin-top:10px"><button class="btn bs sm" onclick="openFCEdit(${fcQIdx})">このカードを編集</button></div>`;
+}
+function flipFC(){if(!fcFlipped){const el=document.getElementById('fcc');if(el)el.classList.add('flip');const ans=document.getElementById('fcans');if(ans)ans.style.display='flex';fcFlipped=true;}}
+// [event] rateFC
+function rateFC(result){
+  if(fcQIdx>=fcQueue.length)return;
+  const card=fcQueue[fcQIdx];
+  const real=((S.decks[curDk]&&S.decks[curDk].cards)||[]).find(c=>c.q===card.q&&c.a===card.a);
+  if(real&&result!=='skip'){
+    real.reps=(real.reps||0)+1;real.lastReview=Date.now();
+    let st=real.stability||1;
+    if(result==='ok'){st=st*(1.8+0.1*(real.reps||1));}else{st=Math.max(1,st*0.3);}
+    real.stability=Math.min(st,365);real.status=result;
+    const nd=new Date();nd.setDate(nd.getDate()+Math.round(real.stability));real.dueDate=nd.toISOString().slice(0,10);
+  }
+  fcQIdx++;fcFlipped=false;
+  if(fcQIdx>=fcQueue.length){
+    // セッション完了：学習時間を記録
+    if(fcTimerStart>0){
+      var fcDur=Date.now()-fcTimerStart;
+      var fcSub=fcTimerSubj||(S.decks[curDk]&&S.decks[curDk].subj)||tSubj||(S.subjects||[])[0]||'';
+      recordSession(fcSub, fcDur);
+      fcTimerStart=0;fcTimerSubj='';
+    }
+    toast('セッション完了');saveS();checkBadges();fcQueue=[];go('fc');return;
+  }
+  go('fc');saveS();checkBadges();
+}
+function openFCEdit(idx){
+  if(curDk<0||idx>=fcQueue.length)return;
+  const card=fcQueue[idx];
+  const real=((S.decks[curDk]&&S.decks[curDk].cards)||[]).find(c=>c.q===card.q&&c.a===card.a);
+  if(!real)return;
+  const overlay=document.createElement('div');
+  overlay.id='fc-edit-overlay';
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1100;display:flex;align-items:flex-end;justify-content:center';
+  (function(){
+    var inner=document.createElement('div');
+    inner.style.cssText='background:var(--card);border-radius:14px 14px 0 0;padding:20px 18px;width:100%;max-width:520px;padding-bottom:calc(20px + var(--sb));border-top:2px solid var(--ac)';
+    var title=document.createElement('div');title.style.cssText='font-size:15px;font-weight:800;margin-bottom:14px';title.textContent='カードを編集';
+    var qWrap=document.createElement('div');qWrap.style.marginBottom='10px';
+    var qLbl=document.createElement('label');qLbl.style.cssText='font-size:11px;font-weight:700;color:var(--t2);display:block;margin-bottom:5px';qLbl.textContent='問題';
+    var qTa=document.createElement('textarea');qTa.id='fceq';qTa.rows=3;qTa.style.cssText='width:100%;padding:9px 12px;border-radius:9px;border:1px solid var(--br);font-size:14px;font-family:inherit;resize:vertical';qTa.value=real.q;
+    qWrap.appendChild(qLbl);qWrap.appendChild(qTa);
+    var aWrap=document.createElement('div');aWrap.style.marginBottom='14px';
+    var aLbl=document.createElement('label');aLbl.style.cssText='font-size:11px;font-weight:700;color:var(--t2);display:block;margin-bottom:5px';aLbl.textContent='答え';
+    var aTa=document.createElement('textarea');aTa.id='fcea';aTa.rows=3;aTa.style.cssText='width:100%;padding:9px 12px;border-radius:9px;border:1px solid var(--br);font-size:14px;font-family:inherit;resize:vertical';aTa.value=real.a;
+    aWrap.appendChild(aLbl);aWrap.appendChild(aTa);
+    var btnRow=document.createElement('div');btnRow.style.cssText='display:flex;gap:8px;justify-content:flex-end';
+    var cancelBtn=document.createElement('button');cancelBtn.className='btn bs';cancelBtn.textContent='キャンセル';cancelBtn.onclick=function(){document.getElementById('fc-edit-overlay').remove();};
+    var saveBtn=document.createElement('button');saveBtn.className='btn bp';saveBtn.textContent='保存';saveBtn.onclick=saveFCEdit;
+    btnRow.appendChild(cancelBtn);btnRow.appendChild(saveBtn);
+    inner.appendChild(title);inner.appendChild(qWrap);inner.appendChild(aWrap);inner.appendChild(btnRow);
+    overlay.appendChild(inner);
+  })();
+  overlay.addEventListener('click',e=>{if(e.target===overlay)overlay.remove();});
+  overlay._origQ=real.q;overlay._origA=real.a;
+  document.body.appendChild(overlay);
+}
+function saveFCEdit(){
+  if(curDk<0)return;
+  const overlay=document.getElementById('fc-edit-overlay');if(!overlay)return;
+  const origQ=overlay._origQ,origA=overlay._origA;
+  const newQ=(document.getElementById('fceq')||{}).value||'';
+  const newA=(document.getElementById('fcea')||{}).value||'';
+  if(!newQ.trim()||!newA.trim()){toast('問題と答えを入力してください');return;}
+  const deck=S.decks[curDk];
+  const card=(deck.cards||[]).find(c=>c.q===origQ&&c.a===origA);
+  if(card){card.q=newQ.trim();card.a=newA.trim();}
+  const qcard=fcQueue[fcQIdx];
+  if(qcard&&qcard.q===origQ){qcard.q=newQ.trim();qcard.a=newA.trim();}
+  saveS();overlay.remove();go('fc');toast('カードを更新しました');
+}
+function saveDk(){const n=document.getElementById('dkn').value.trim();if(!n){toast('デッキ名を入力');return;}S.decks=S.decks||[];S.decks.push({name:n,subj:document.getElementById('dks').value,cards:[]});saveS();closeM('mdeck');toast('デッキ作成');go('fc');document.getElementById('dkn').value='';}
+function delDk(i){if(!confirm('削除しますか？'))return;S.decks.splice(i,1);if(curDk===i)curDk=-1;saveS();go('fc');toast('削除しました');}
+function saveCards(){
+  if(curDk<0||curDk>=(S.decks||[]).length){toast('デッキを選択してください');return;}
+  const deck=S.decks[curDk];deck.cards=deck.cards||[];
+  const bk=document.getElementById('cbulk').value.trim();const q=document.getElementById('cq').value.trim();const a=document.getElementById('ca').value.trim();
+  let n=0;
+  if(bk){bk.split('\n').forEach(line=>{line=line.trim();if(!line)return;const sep=line.indexOf('\t')>=0?'\t':',';const p=line.split(sep);if(p.length>=2){deck.cards.push({q:p[0].trim(),a:p.slice(1).join(sep).trim(),stability:1,lastReview:null,reps:0,status:'new'});n++;}});}
+  if(q&&a){deck.cards.push({q,a,stability:1,lastReview:null,reps:0,status:'new'});n++;}
+  if(!n){toast('カードを入力してください');return;}
+  saveS();closeM('mcard');toast(`✅ ${n}枚追加`);fcQueue=[];go('fc');
+  document.getElementById('cbulk').value='';document.getElementById('cq').value='';document.getElementById('ca').value='';
+}
+// [event] loadCardFile
+function loadCardFile(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{const lines=ev.target.result.split(/\r?\n/).filter(l=>l.trim());const ta=document.getElementById('cbulk');if(ta)ta.value=lines.map(l=>{const sep=l.indexOf('\t')>=0?'\t':',';return l.split(sep).map(s=>s.replace(/^"|"$/g,'')).join('\t');}).join('\n');toast(`📂 ${lines.length}行を読み込みました`);};r.readAsText(f,'UTF-8');e.target.value='';}
+
+// §13 SKILL TREE ─────────────────────────────
+// 教科別スキルツリー（フルスクリーンSVGマップ・ドラッグ配置・習得チェック）
+// SK_SUBJ は互換エイリアス。新規コードは CFG.SUBJECTS を参照
+const SK_SUBJ=CFG.SUBJECTS;
+// [render] pSK
+function pSK(){
+  var allSubjs=[...new Set([...CFG.SUBJECTS,...(S.subjects||[])])];
+  var totalDone=Object.values(S.skills).reduce(function(a,arr){return a+arr.filter(function(s){return s.status==='done';}).length;},0);
+  var totalAll=Object.values(S.skills).reduce(function(a,arr){return a+arr.length;},0);
+  var cards=allSubjs.map(function(s){
+    var skills=S.skills[s]||[];
+    var done=skills.filter(function(sk){return sk.status==='done';}).length;
+    var total=skills.length;
+    var pct=total>0?Math.round(done/total*100):0;
+    var sc=subjColor(s);
+    return'<div class="sk-subj-card'+(total>0?' has-skills':'')+'" onclick="openSkMap(\''+s.replace(/'/g,"\\'")+'\');" style="border-color:'+(total>0?sc+'55':'var(--br)')+';">'
+      +'<div class="sk-subj-name" style="color:'+(total>0?sc:'var(--t1)')+'">'+s+'</div>'
+      +'<div class="sk-subj-count">'+done+' / '+total+' 習得'+(total>0?' ('+pct+'%)':'')+'</div>'
+      +'<div class="sk-subj-bar" style="width:'+pct+'%;background:'+sc+'"></div>'
+      +'</div>';
+  }).join('');
+  return pageHeader('✧ スキルツリー','','',badgeHTML(totalDone+' / '+totalAll+' 習得'))
+    +'<div class="sk-subj-grid">'+cards+'</div>';
+}
+// [event] openSkMap
+function openSkMap(s){
+  curSKS=s;
+  var overlay=document.getElementById('sk-map-overlay');
+  var title=document.getElementById('sk-map-title');
+  if(title){
+    var sc=scolor(s);
+    title.innerHTML='<span style="color:'+sc+'">'+s+'</span> スキルマップ';
+  }
+  overlay.classList.add('on');
+  closeSkFormMap();
+  renderSKTree();
+  updateSkMapCount();
+}
+// [event] closeSkMap
+function closeSkMap(){
+  // パンリスナーを解放
+  if (_skPanCleanup) { _skPanCleanup(); _skPanCleanup = null; }
+  document.getElementById('sk-map-overlay').classList.remove('on');
+  // 教科選択グリッドを再描画
+  if(curP==='sk'){
+    var c=getC();
+    if(c)c.innerHTML=pSK();
+  }
+}
+// [render] updateSkMapCount
+function updateSkMapCount(){
+  var el=document.getElementById('sk-map-count');if(!el)return;
+  var skills=S.skills[curSKS]||[];
+  var done=skills.filter(function(s){return s.status==='done';}).length;
+  el.textContent=done+' / '+skills.length+' 習得';
+}
+// [event] openSkFormMap
+function openSkFormMap(parentId){
+  skMapParentId=parentId;
+  var f=document.getElementById('sk-map-add-form');if(!f)return;
+  f.style.display='block';
+  var title=document.getElementById('sk-map-form-title');
+  if(title){
+    if(parentId){
+      var par=(S.skills[curSKS]||[]).find(function(s){return s.id===parentId;});
+      title.textContent=par?'「'+par.name+'」の子スキルを追加':'スキルを追加';
+    }else title.textContent='ルートスキルを追加';
+  }
+  var inp=document.getElementById('sk-map-inp');if(inp){inp.value='';inp.focus();}
+}
+// [event] closeSkFormMap
+function closeSkFormMap(){
+  var f=document.getElementById('sk-map-add-form');if(f)f.style.display='none';
+  skMapParentId=null;
+}
+// [event] addSkillMap
+function addSkillMap(){
+  var inp=document.getElementById('sk-map-inp');
+  var n=inp?inp.value.trim():'';
+  if(!n){toast('スキル名を入力してください');return;}
+  S.skills[curSKS]=S.skills[curSKS]||[];
+  S.skills[curSKS].push({id:'sk_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),name:n,preId:skMapParentId||null,status:'open'});
+  saveS();toast('✅ スキル追加');if(inp)inp.value='';
+  renderSKTree();updateSkMapCount();
+}
+// Legacy compat wrappers (used by SVG + buttons inside map)
+function openSkForm(parentId){openSkFormMap(parentId);}
+function closeSkForm(){closeSkFormMap();}
+function addSkill(){addSkillMap();}
+// [event] delSkill
+function delSkill(id){
+  var skills=S.skills[curSKS]||[];
+  var idx=skills.findIndex(function(s){return s.id===id;});
+  if(idx<0)return;
+  var name=skills[idx].name;
+
+  var prev=document.getElementById('sk-del-overlay');
+  if(prev)prev.remove();
+
+  var ov=document.createElement('div');
+  ov.id='sk-del-overlay';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1200;'
+    +'display:flex;align-items:center;justify-content:center;padding:20px';
+
+  var box=document.createElement('div');
+  box.style.cssText='background:var(--card);border-radius:14px;padding:22px 18px;'
+    +'width:100%;max-width:340px;border-top:3px solid var(--bad)';
+
+  var ttl=document.createElement('div');
+  ttl.style.cssText='font-size:16px;font-weight:800;color:var(--bad);margin-bottom:8px';
+  ttl.textContent='スキルを削除';
+
+  var msg=document.createElement('div');
+  msg.style.cssText='font-size:13px;color:var(--t2);line-height:1.7;margin-bottom:18px';
+  msg.innerHTML='「<b>'+name+'</b>」を削除しますか？<br>'
+    +'<span style="font-size:11px;color:var(--t3)">子スキルは親なしになります</span>';
+
+  var row=document.createElement('div');
+  row.style.cssText='display:flex;gap:10px';
+
+  var cancelBtn=document.createElement('button');
+  cancelBtn.className='btn bs';cancelBtn.style.flex='1';
+  cancelBtn.textContent='キャンセル';
+  cancelBtn.onclick=function(){ov.remove();};
+
+  var okBtn=document.createElement('button');
+  okBtn.className='btn bd';
+  okBtn.style.cssText='flex:1;background:var(--bad);color:#fff';
+  okBtn.textContent='削除する';
+  okBtn.onclick=function(){
+    ov.remove();
+    // 実際の削除処理
+    var arr=S.skills[curSKS]||[];
+    var i2=arr.findIndex(function(s){return s.id===id;});
+    if(i2>=0){
+      arr.splice(i2,1);
+      arr.forEach(function(s){if(s.preId===id)s.preId=null;});
+    }
+    saveS();renderSKTree();updateSkMapCount();
+    toast('削除しました：'+name);
+  };
+
+  row.appendChild(cancelBtn);row.appendChild(okBtn);
+  box.appendChild(ttl);box.appendChild(msg);box.appendChild(row);
+  ov.appendChild(box);
+  ov.addEventListener('click',function(e){if(e.target===ov)ov.remove();});
+  document.body.appendChild(ov);
+}
+
+// Check if ALL ancestors are done
+// [pure] allAncestorsDone
+function allAncestorsDone(id,im){
+  const sk=im[id];if(!sk)return true;
+  if(!sk.preId)return true;
+  const pre=im[sk.preId];
+  if(!pre||pre.status!=='done')return false;
+  return allAncestorsDone(sk.preId,im);
+}
+// [event] toggleSK2
+function toggleSK2(id){
+  const skills=S.skills[curSKS];if(!skills)return;
+  const im={};skills.forEach(s=>im[s.id]=s);
+  const sk=im[id];if(!sk)return;
+  if(sk.status!=='done'){
+    // Trying to complete: check all ancestors
+    if(!allAncestorsDone(id,im)){toast('前提スキルがすべて完了していません');return;}
+  }else{
+    // Uncompleting: also uncheck all descendants
+    const uncheck=(nid)=>{skills.filter(s=>s.preId===nid).forEach(child=>{if(child.status==='done'){child.status='open';uncheck(child.id);}});};
+    uncheck(id);
+  }
+  sk.status=sk.status==='done'?'open':'done';
+  saveS();renderSKTree();checkBadges();updateSkMapCount();toast(sk.status==='done'?'✅ 習得！':'↩ 未完了に戻しました');
+}
+// [render] renderSKTree
+function renderSKTree(){
+  var skills=S.skills[curSKS]||[];
+  var wrap=document.getElementById('sk-map-svg-wrap');if(!wrap)return;
+  if(!skills.length){
+    wrap.innerHTML='<div style="text-align:center;padding:32px;color:var(--t3)"><div style="font-size:28px;margin-bottom:8px">&#10022;</div>'
+      +'<div style="font-size:13px;font-weight:600">スキルがありません</div>'
+      +'<div style="margin-top:10px"><button class="btn bp sm" onclick="openSkForm(null)">+ 最初のスキルを追加</button></div></div>';
+    return;
+  }
+  var im={};skills.forEach(function(s){im[s.id]=s;});
+  var ch={};skills.forEach(function(s){if(s.preId&&im[s.preId]){ch[s.preId]=ch[s.preId]||[];ch[s.preId].push(s.id);}});
+  var roots=skills.filter(function(s){return!s.preId||!im[s.preId];});
+  var screenW=window.innerWidth||375;
+  var NW=Math.max(120, Math.min(150, Math.round(screenW/3))), NH=48, VG=90, HG=20, BTNR=16, MARGIN=40;
+  var _sw={};
+  function sw(id){if(_sw[id]!==undefined)return _sw[id];var c=ch[id]||[];var w=c.length===0?(NW+HG):c.reduce(function(acc,cid){return acc+sw(cid);},0);_sw[id]=w;return w;}
+  var autoPos={};
+  function place(id,cx,y){autoPos[id]={x:cx-NW/2,y:y};var c=ch[id]||[];if(!c.length)return;var total=c.reduce(function(acc,cid){return acc+sw(cid);},0);var ox=cx-total/2;c.forEach(function(cid){var w=sw(cid);place(cid,ox+w/2,y+NH+VG);ox+=w;});}
+  var ox=MARGIN+BTNR+NW/2;roots.forEach(function(r){var w=sw(r.id);place(r.id,ox+w/2-NW/2,20);ox+=w;});
+  var pos={};
+  skills.forEach(function(sk){pos[sk.id]=(sk.manualX!==undefined&&sk.manualY!==undefined)?{x:sk.manualX,y:sk.manualY}:(autoPos[sk.id]||{x:20,y:20});});
+  var maxX=0,maxY=0;
+  Object.values(pos).forEach(function(p){if(p.x+NW+BTNR*2+8>maxX)maxX=p.x+NW+BTNR*2+8;if(p.y+NH+40>maxY)maxY=p.y+NH+40;});
+  var W=Math.max(maxX+20,340),H=Math.max(maxY,200);
+  var sc=scolor(curSKS),edges='',nodes='';
+  skills.forEach(function(sk){
+    if(!sk.preId||!pos[sk.preId]||!pos[sk.id])return;
+    var pp=pos[sk.preId],cp=pos[sk.id];
+    var x1=pp.x+NW/2,y1=pp.y+NH,x2=cp.x+NW/2,y2=cp.y,midy=(y1+y2)/2;
+    var isDone=allAncestorsDone(sk.id,im)&&im[sk.preId]&&im[sk.preId].status==='done';
+    edges+='<path d="M'+x1+','+y1+' C'+x1+','+midy+' '+x2+','+midy+' '+x2+','+y2+'"'
+      +' fill="none" stroke="'+(isDone?sc:'#c4e4f5')+'" stroke-width="'+(isDone?2:1.5)+'"'+(isDone?'':' stroke-dasharray="5,4"')+'/>';
+  });
+  skills.forEach(function(sk){
+    var p=pos[sk.id];if(!p)return;
+    var unlocked=allAncestorsDone(sk.id,im);
+    var done=sk.status==='done',locked=!unlocked;
+    var fill,stroke,tc;
+    if(done){fill=sc;stroke=sc;tc='#fff';}else if(locked){fill='#f0f4f8';stroke='#c4e4f5';tc='#8aa4b4';}else{fill='#fff';stroke=sc;tc='#1c2a36';}
+    var nm=sk.name.length>13?sk.name.slice(0,12)+'\u2026':sk.name;
+    var plusCx=p.x+NW+8+BTNR,delCx=p.x-8-BTNR,btnCy=p.y+NH/2;
+    nodes+='<g data-action="toggle" data-id="'+sk.id+'" data-drag="1" style="cursor:grab">'
+      +'<rect x="'+p.x+'" y="'+p.y+'" width="'+NW+'" height="'+NH+'" rx="9" fill="'+fill+'" stroke="'+stroke+'" stroke-width="'+(done?2:1.5)+'"/>'
+      +(done?'<text x="'+(p.x+NW-10)+'" y="'+(p.y+11)+'" text-anchor="middle" dominant-baseline="central" font-size="10" fill="#fff">\u2713</text>':'')
+      +(locked?'<text x="'+(p.x+NW/2)+'" y="'+(p.y+NH/2)+'" text-anchor="middle" dominant-baseline="central" font-size="15" fill="'+tc+'">\uD83D\uDD12</text>':'<text x="'+(p.x+NW/2)+'" y="'+(p.y+NH/2)+'" text-anchor="middle" dominant-baseline="central" font-size="10" font-weight="700" fill="'+tc+'">'+nm+'</text>')
+      +'</g>';
+    nodes+='<g data-action="plus" data-id="'+sk.id+'" style="cursor:pointer">'
+      +'<circle cx="'+plusCx+'" cy="'+btnCy+'" r="'+BTNR+'" fill="#eef7fd" stroke="'+sc+'" stroke-width="1.5"/>'
+      +'<text x="'+plusCx+'" y="'+btnCy+'" text-anchor="middle" dominant-baseline="central" font-size="16" font-weight="700" fill="'+sc+'">+</text>'
+      +'</g>';
+    nodes+='<g data-action="del" data-id="'+sk.id+'" style="cursor:pointer">'
+      +'<circle cx="'+delCx+'" cy="'+btnCy+'" r="'+BTNR+'" fill="#fdf0f0" stroke="#f4b8b8" stroke-width="1.5"/>'
+      +'<text x="'+delCx+'" y="'+btnCy+'" text-anchor="middle" dominant-baseline="central" font-size="13" font-weight="700" fill="#d84848">\u00d7</text>'
+      +'</g>';
+  });
+  wrap.innerHTML='<svg id="sktree-svg" width="'+W+'" height="'+H+'" viewBox="0 0 '+W+' '+H+'" xmlns="http://www.w3.org/2000/svg" style="display:block;min-width:'+W+'px;touch-action:none">'+edges+nodes+'</svg>';
+  var svg=wrap.querySelector('svg');if(!svg)return;
+  wrap.querySelectorAll('g[data-action="toggle"]').forEach(function(g){
+    var id=g.getAttribute('data-id');
+    g.addEventListener('click',function(e){if(g._dragged)return;e.stopPropagation();toggleSK2(id);});
+  });
+  wrap.querySelectorAll('g[data-action="plus"]').forEach(function(g){
+    var id=g.getAttribute('data-id');
+    g.addEventListener('click',function(e){e.stopPropagation();openSkForm(id);});
+  });
+  wrap.querySelectorAll('g[data-action="del"]').forEach(function(g){
+    var id=g.getAttribute('data-id');
+    g.addEventListener('click',function(e){e.stopPropagation();e.preventDefault();delSkill(id);});
+  });
+  // Drag to reposition
+  var THRESHOLD=6;
+  wrap.querySelectorAll('g[data-drag="1"]').forEach(function(g){
+    var id=g.getAttribute('data-id');
+    var dragging=false,startX=0,startY=0,origX=0,origY=0,moved=false;
+    function getXY(e){var t=e.touches?e.touches[0]:e;var rect=svg.getBoundingClientRect();var sx=parseFloat(svg.getAttribute('width'))/rect.width,sy=parseFloat(svg.getAttribute('height'))/rect.height;return{x:(t.clientX-rect.left)*sx,y:(t.clientY-rect.top)*sy};}
+    function onStart(e){
+      if(e.target.closest&&e.target.closest('g[data-action="plus"],g[data-action="del"]'))return;
+      var xy=getXY(e);startX=xy.x;startY=xy.y;
+      var sk=im[id];origX=sk.manualX!==undefined?sk.manualX:(pos[id]?pos[id].x:0);origY=sk.manualY!==undefined?sk.manualY:(pos[id]?pos[id].y:0);
+      dragging=true;moved=false;g._dragged=false;
+      if(e.type==='pointerdown'&&g.setPointerCapture)g.setPointerCapture(e.pointerId);
+    }
+    function onMove(e){
+      if(!dragging)return;
+      var xy=getXY(e);var dx=xy.x-startX,dy=xy.y-startY;
+      if(!moved&&Math.sqrt(dx*dx+dy*dy)<THRESHOLD)return;
+      moved=true;g._dragged=true;
+      var nx=Math.max(MARGIN,origX+dx),ny=Math.max(10,origY+dy);
+      var rect=g.querySelector('rect');if(rect){rect.setAttribute('x',nx);rect.setAttribute('y',ny);}
+      g.querySelectorAll('text').forEach(function(t){
+        var ox=parseFloat(t.getAttribute('data-ox')||t.getAttribute('x'));
+        var oy=parseFloat(t.getAttribute('data-oy')||t.getAttribute('y'));
+        if(!t.getAttribute('data-ox')){t.setAttribute('data-ox',ox);t.setAttribute('data-oy',oy);}
+        t.setAttribute('x',parseFloat(t.getAttribute('data-ox'))+(nx-origX));
+        t.setAttribute('y',parseFloat(t.getAttribute('data-oy'))+(ny-origY));
+      });
+      // Live edge update
+      svg.querySelectorAll('path').forEach(function(path){path.remove();});
+      var livePts={};svg.querySelectorAll('g[data-drag="1"]').forEach(function(dg){var r=dg.querySelector('rect');if(r)livePts[dg.getAttribute('data-id')]={x:parseFloat(r.getAttribute('x')),y:parseFloat(r.getAttribute('y'))};});
+      skills.forEach(function(sk){if(!sk.preId||!livePts[sk.preId]||!livePts[sk.id])return;var pp=livePts[sk.preId],cp=livePts[sk.id];var x1=pp.x+NW/2,y1=pp.y+NH,x2=cp.x+NW/2,y2=cp.y,midy=(y1+y2)/2;var isDone=allAncestorsDone(sk.id,im)&&im[sk.preId]&&im[sk.preId].status==='done';var path=document.createElementNS('http://www.w3.org/2000/svg','path');path.setAttribute('d','M'+x1+','+y1+' C'+x1+','+midy+' '+x2+','+midy+' '+x2+','+y2);path.setAttribute('fill','none');path.setAttribute('stroke',isDone?sc:'#c4e4f5');path.setAttribute('stroke-width',isDone?2:1.5);if(!isDone)path.setAttribute('stroke-dasharray','5,4');svg.insertBefore(path,svg.firstChild);});
+    }
+    function onEnd(){
+      if(!dragging)return;dragging=false;
+      if(moved){var rect=g.querySelector('rect');if(rect){var sk=im[id];if(sk){var nx=Math.round(parseFloat(rect.getAttribute('x')));var ny=Math.round(parseFloat(rect.getAttribute('y')));var ap=autoPos[id];if(ap&&Math.abs(nx-ap.x)<4&&Math.abs(ny-ap.y)<4){delete sk.manualX;delete sk.manualY;}else{sk.manualX=nx;sk.manualY=ny;}}}saveS();renderSKTree();}
+      setTimeout(function(){g._dragged=false;},50);
+    }
+    g.addEventListener('pointerdown',onStart);
+    g.addEventListener('pointermove',onMove);
+    g.addEventListener('pointerup',onEnd);
+    g.addEventListener('pointercancel',onEnd);
+  });
+
+  // ── 空白ドラッグ（パン）機能 ──────────────────────
+  // スキルノード以外の部分をドラッグするとキャンバス全体をパンできる
+  _initSkMapPan(wrap);
+}
+/**
+ * §13b SK MAP PAN ────────────────────────────
+ * wrap（#sk-map-svg-wrap）の親（#sk-map-body）上で
+ * スキルノード以外の空白をドラッグするとパンできる。
+ * renderSKTree の最後に毎回呼ばれ、前回のリスナーを置き換える。
+ */
+
+function _initSkMapPan(wrap) {
+  var body = document.getElementById('sk-map-body');
+  if (!body) return;
+
+  // 前回のリスナーを除去
+  if (_skPanCleanup) { _skPanCleanup(); _skPanCleanup = null; }
+
+  // SVG の現在の translate オフセット
+  var panX = 0, panY = 0;
+  var startX = 0, startY = 0;
+  var startPanX = 0, startPanY = 0;
+  var isPanning = false;
+
+  // wrap の現在の transform を読み取る（再描画後も維持）
+  var m = (wrap.style.transform || '').match(/translate\((-?\d+(?:\.\d+)?)px,\s*(-?\d+(?:\.\d+)?)px\)/);
+  if (m) { panX = parseFloat(m[1]); panY = parseFloat(m[2]); }
+
+  function applyTransform() {
+    wrap.style.transform = 'translate(' + panX + 'px,' + panY + 'px)';
+  }
+  applyTransform();
+
+  function isOnSkillNode(target) {
+    return !!(target && (
+      target.closest('g[data-drag="1"]') ||
+      target.closest('g[data-action="plus"]') ||
+      target.closest('g[data-action="del"]')
+    ));
+  }
+
+  function onPanStart(e) {
+    if (isOnSkillNode(e.target)) return; // スキルノード上なら無視
+    isPanning = true;
+    startX = e.clientX; startY = e.clientY;
+    startPanX = panX; startPanY = panY;
+    body.classList.add('panning');
+    body.setPointerCapture && body.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  }
+  function onPanMove(e) {
+    if (!isPanning) return;
+    var dx = e.clientX - startX;
+    var dy = e.clientY - startY;
+    panX = startPanX + dx;
+    panY = startPanY + dy;
+    applyTransform();
+  }
+  function onPanEnd(e) {
+    if (!isPanning) return;
+    isPanning = false;
+    body.classList.remove('panning');
+  }
+
+  // タッチ対応
+  var touchId = null;
+  function onTouchStart(e) {
+    if (isOnSkillNode(e.target)) return;
+    if (e.touches.length !== 1) return;
+    touchId = e.touches[0].identifier;
+    startX = e.touches[0].clientX; startY = e.touches[0].clientY;
+    startPanX = panX; startPanY = panY;
+    isPanning = true;
+    body.classList.add('panning');
+  }
+  function onTouchMove(e) {
+    if (!isPanning || touchId === null) return;
+    var t = Array.from(e.changedTouches).find(function(x){return x.identifier===touchId;});
+    if (!t) return;
+    e.preventDefault();
+    panX = startPanX + (t.clientX - startX);
+    panY = startPanY + (t.clientY - startY);
+    applyTransform();
+  }
+  function onTouchEnd(e) {
+    isPanning = false; touchId = null;
+    body.classList.remove('panning');
+  }
+
+  body.addEventListener('pointerdown', onPanStart);
+  body.addEventListener('pointermove', onPanMove);
+  body.addEventListener('pointerup', onPanEnd);
+  body.addEventListener('pointercancel', onPanEnd);
+  body.addEventListener('touchstart', onTouchStart, {passive:true});
+  body.addEventListener('touchmove', onTouchMove, {passive:false});
+  body.addEventListener('touchend', onTouchEnd);
+
+  _skPanCleanup = function() {
+    body.removeEventListener('pointerdown', onPanStart);
+    body.removeEventListener('pointermove', onPanMove);
+    body.removeEventListener('pointerup', onPanEnd);
+    body.removeEventListener('pointercancel', onPanEnd);
+    body.removeEventListener('touchstart', onTouchStart);
+    body.removeEventListener('touchmove', onTouchMove);
+    body.removeEventListener('touchend', onTouchEnd);
+  };
+}
+
+function resetSKLayout(){
+  var skills=S.skills[curSKS]||[];
+  skills.forEach(function(sk){delete sk.manualX;delete sk.manualY;});
+  // パンオフセットもリセット
+  var wrap=document.getElementById('sk-map-svg-wrap');
+  if(wrap)wrap.style.transform='translate(0px,0px)';
+  if(_skPanCleanup){_skPanCleanup();_skPanCleanup=null;}
+  saveS();renderSKTree();toast('配置をリセットしました');
+}
+
+// §14 TEST ANALYSIS ──────────────────────────
+// テスト結果の記録・教科別折れ線グラフ・種別(考査/模試等)フィルタ
+// テスト平均計算：生の得点/満点ベースで正確に算出
+// [pure] calcRoundAvg
+function calcRoundAvg(r){
+  var entries=Object.values(r.scores||{});
+  if(!entries.length)return 0;
+  var totalScore=entries.reduce(function(a,s){return a+(parseFloat(s.score)||0);},0);
+  var totalMax=entries.reduce(function(a,s){return a+(parseFloat(s.max)||0);},0);
+  return totalMax>0?Math.round(totalScore/totalMax*100):0;
+}
+// 教科ごとの%（表示用）
+// [pure] calcSubjPct
+function calcSubjPct(sc){
+  var score=parseFloat(sc.score)||0;
+  var max=parseFloat(sc.max)||0;
+  return max>0?Math.round(score/max*100):0;
+}
+// [render] pAn
+function pAn(){
+  var allTypes=[...new Set((S.rounds||[]).map(function(r){
+    return r.type||'その他';
+  }))];
+  if(!allTypes.length) allTypes=['考査'];
+  if(!allTypes.includes(curTType)) curTType=allTypes[0];
+
+  var tabsH=allTypes.map(function(t){
+    var on=(t===curTType)?' on':'';
+    return '<div class="ttab'+on+'" onclick="selTType(\''+t+'\')">'+t+'</div>';
+  }).join('');
+
+  var rounds=(S.rounds||[])
+    .filter(function(r){return (r.type||'その他')===curTType;})
+    .slice().sort(function(a,b){return a.date.localeCompare(b.date);});
+
+  var listH=[...rounds].reverse().map(function(r,ri){
+    var avg=calcRoundAvg(r);
+    var srows=Object.entries(r.scores||{}).map(function(kv){
+      var subj=kv[0],sc=kv[1];
+      var pct=calcSubjPct(sc);
+      var c=scoreColor(pct);
+      var sc2=scolor(subj);
+      return '<div class="srow">'
+        +'<div class="srow-lbl" style="color:'+sc2+';font-weight:800;font-size:11px">'+subj+'</div>'
+        +'<div class="srow-bw"><div class="srow-bf" data-pct="'+pct
+        +'" style="width:0%;background:'+c+'"></div></div>'
+        +'<div class="srow-v" style="color:'+c+';min-width:70px;text-align:right">'
+        +'<span style="font-size:13px;font-weight:800">'+pct+'%</span>'
+        +'<br><span style="font-size:10px;color:var(--t3);font-weight:400">'+sc.score+'/'+sc.max+'</span>'
+        +(sc.dev!=null?'<br><span style="font-size:9px;color:var(--t3)">偏差値'+sc.dev+'</span>':'')
+        +'</div></div>';
+    }).join('');
+    var realIdx=S.rounds.indexOf(r);
+    var bid='tb'+ri;
+    return '<div class="trnd">'
+      +'<div class="trnd-h" onclick="toggleTrnd(\''+bid+'\')">'
+      +'<div style="flex:1">'
+      +'<div class="trnd-n">'+r.name+'</div>'
+      +'<div style="font-size:11px;color:var(--t3);margin-top:2px">'+r.date
+      +' · '+Object.keys(r.scores||{}).length+'教科 · 平均 '
+      +'<b style="color:'+scoreColor(avg)+'">'+avg+'%</b></div>'
+      +'</div>'
+      +'<div style="display:flex;align-items:center;gap:6px">'
+      +'<div class="bdg '+(avg>=CFG.SCORE.GOOD?'bok':avg>=CFG.SCORE.WARN?'bwn':'bbd')+'">'+avg+'%</div>'
+      +'<span style="color:var(--t3);font-size:12px" id="'+bid+'-arrow">▼</span>'
+      +'<button class="btn bs sm" onclick="event.stopPropagation();editRnd('+realIdx+')" '
+      +'style="padding:4px 8px;font-size:11px">✎</button>'
+      +'</div></div>'
+      +'<div class="trnd-b" id="'+bid+'" style="display:none">'+srows+'</div>'
+      +'</div>';
+  }).join('')||'<div style="color:var(--t3);font-size:13px;text-align:center;padding:24px">テストを追加してください</div>';
+
+  return pageHeader('◎ テスト分析','成績管理・傾向分析',
+    backBtn('grades','成績'),
+    '<button class="btn bs sm" onclick="openM(\'msubj\')">＋ 教科</button>'
+    +'<button class="btn bp sm" onclick="openM(\'mrnd\')">＋ 追加</button>')
+    +'<div class="ttabs">'+tabsH+'</div>'
+    +'<div class="card" id="an-graph-card">'
+    +'<div class="ct" id="an-graph-title">'+curTType+' 成績トレンド</div>'
+    +'<canvas id="an-subj" style="width:100%;display:block;cursor:pointer" height="240"></canvas>'
+    +'<div style="font-size:10px;color:var(--t3);text-align:center;margin-top:6px">👆 タップして拡大・点に触れて数値表示</div>'
+    +'</div>'
+    +listH;
+}
+
+// renderAnSubj: 選択種別のみ描画 + タップ拡大
+// [event] selTType
+function selTType(t){curTType=t;go('an');}
+// [event] toggleT
+function toggleTrnd(bid){
+  var el=document.getElementById(bid);if(!el)return;
+  var arrow=document.getElementById(bid+'-arrow');
+  var isOpen=el.style.display!=='none';
+  el.style.display=isOpen?'none':'block';
+  if(arrow)arrow.textContent=isOpen?'▼':'▲';
+  if(!isOpen){
+    setTimeout(function(){
+      el.querySelectorAll('.srow-bf').forEach(function(bar){
+        var pct=bar.getAttribute('data-pct')||'0';
+        bar.style.transition='width .5s ease';
+        bar.style.width=pct+'%';
+      });
+    },20);
+  }
+}
+// [render] animateAnBars
+function animateAnBars(){
+  document.querySelectorAll('.trnd-b').forEach(function(block){
+    if(block.style.display==='none')return;
+    block.querySelectorAll('.srow-bf').forEach(function(bar){
+      var pct=bar.getAttribute('data-pct')||'0';
+      bar.style.transition='width .5s ease';
+      bar.style.width=pct+'%';
+    });
+  });
+}
+// [render] buildRndChips
+function buildRndChips(){
+  rndSubjs=[];
+  var el=document.getElementById('rnchips');
+  if(!el)return;
+  el.innerHTML=(S.subjects||[]).map(function(s){
+    return'<div class="chip" onclick="togRndS(this,\''+s.replace(/'/g,"\\'")+'\')">'+s+'</div>';
+  }).join('');
+}
+// [event] togRndS
+function togRndS(el,s){
+  if(rndSubjs.includes(s)){rndSubjs=rndSubjs.filter(function(x){return x!==s;});el.classList.remove('on');el.style.borderColor='';el.style.color='';}
+  else{var sc=scolor(s);rndSubjs.push(s);el.classList.add('on');el.style.borderColor=sc;el.style.color=sc;}
+}
+// [event] nextRnd
+function nextRnd(){
+  var n=document.getElementById('rnn').value.trim();
+  if(!n){toast('テスト名を入力してください');return;}
+  if(!rndSubjs.length){toast('教科を選択してください');return;}
+  tmpRnd={
+    id:editRndIdx>=0?((S.rounds[editRndIdx]&&S.rounds[editRndIdx].id)||'r_'+Date.now()):'r_'+Date.now(),
+    name:n,
+    type:document.getElementById('rntype').value,
+    date:document.getElementById('rnd').value||today(),
+    subjects:[...rndSubjs],
+    scores:{}
+  };
+  var infoEl=document.getElementById('msc-info');
+  if(infoEl)infoEl.textContent=tmpRnd.name+'（'+tmpRnd.type+'）'+tmpRnd.date;
+  var inpsEl=document.getElementById('scinps');
+  if(inpsEl){
+    // インデックスベースのIDを使用（日本語教科名をIDに使うと\wで全部_に変換され衝突するバグを修正）
+    inpsEl.innerHTML=rndSubjs.map(function(s,i){
+      var existing=editRndIdx>=0?((S.rounds[editRndIdx]&&S.rounds[editRndIdx].scores&&S.rounds[editRndIdx].scores[s])):null;
+      var sc=scolor(s);
+      return'<div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;padding:8px 10px;background:var(--acbg);border-radius:var(--rs);border-left:3px solid '+sc+'">'
+        +'<div style="width:60px;flex-shrink:0;font-size:12px;font-weight:800;color:'+sc+'">'+s+'</div>'
+        +'<input type="number" id="rsc_'+i+'" data-subj="'+s+'" placeholder="得点" value="'+(existing&&existing.score!=null?existing.score:'')+'" min="0" inputmode="decimal" style="flex:1;text-align:center">'
+        +'<span style="color:var(--t3);font-size:13px;font-weight:700;flex-shrink:0">/</span>'
+        +'<input type="number" id="rmx_'+i+'" placeholder="満点" value="'+(existing&&existing.max!=null?existing.max:100)+'" min="1" inputmode="decimal" style="width:58px;flex-shrink:0;text-align:center">'
+        +'<input type="number" id="rdv_'+i+'" placeholder="偏差値" value="'+(existing&&existing.dev!=null?existing.dev:'')+'" min="0" max="100" inputmode="decimal" style="width:56px;flex-shrink:0;text-align:center;color:var(--t3)">'
+        +'</div>';
+    }).join('')
+    +'<div style="font-size:10px;color:var(--t3);margin-top:4px">得点 / 満点 / 偏差値（任意）の順で入力</div>';
+  }
+  closeM('mrnd');
+  openM('msc');
+}
+// [event] saveRnd
+function saveRnd(){
+  if(!tmpRnd)return;
+  rndSubjs.forEach(function(s,i){
+    var sce=document.getElementById('rsc_'+i);
+    var mxe=document.getElementById('rmx_'+i);
+    var dve=document.getElementById('rdv_'+i);
+    var scoreVal=sce?sce.value.trim():'';
+    var maxVal=mxe?mxe.value.trim():'';
+    var devVal=dve?dve.value.trim():'';
+    tmpRnd.scores[s]={
+      score:scoreVal!==''?parseFloat(scoreVal):0,
+      max:maxVal!==''?parseFloat(maxVal):100,
+      dev:devVal!==''?parseFloat(devVal):null
+    };
+  });
+  S.rounds=S.rounds||[];
+  if(editRndIdx>=0&&editRndIdx<S.rounds.length){
+    S.rounds[editRndIdx]=tmpRnd;
+  }else{
+    S.rounds.push(tmpRnd);
+  }
+  S.rounds.sort(function(a,b){return a.date.localeCompare(b.date);});
+  saveS();checkBadges();closeM('msc');toast('テスト記録');
+  document.getElementById('rnn').value='';
+  tmpRnd=null;editRndIdx=-1;
+  go('an');
+}
+// [event] editRnd
+function editRnd(idx){
+  editRndIdx=idx;
+  var r=S.rounds[idx];if(!r)return;
+  document.getElementById('mrnd-title').textContent='テストを編集';
+  document.getElementById('rnn').value=r.name;
+  document.getElementById('rntype').value=r.type||'考査';
+  document.getElementById('rnd').value=r.date;
+  rndSubjs=[...r.subjects];
+  buildRndChips();
+  setTimeout(function(){
+    rndSubjs.forEach(function(s){
+      var chips=document.querySelectorAll('#rnchips .chip');
+      chips.forEach(function(c){if(c.textContent.trim()===s)c.classList.add('on');});
+    });
+  },50);
+  openM('mrnd');
+}
+// [render] renderAnSubj
+function renderAnSubj() {
+  var rounds = (S.rounds || [])
+    .filter(function(r){ return (r.type || 'その他') === curTType; })
+    .slice().sort(function(a, b){ return a.date.localeCompare(b.date); });
+
+  var cv = document.getElementById('an-subj');
+  if (!cv) return;
+
+  // データ構築
+  var bySubj = {};
+  rounds.forEach(function(r) {
+    Object.entries(r.scores || {}).forEach(function(kv) {
+      var subj = kv[0], sc = kv[1];
+      if (!bySubj[subj]) bySubj[subj] = [];
+      bySubj[subj].push({date: r.date, pct: calcSubjPct(sc)});
+    });
+  });
+  var subjKeys = Object.keys(bySubj);
+  if (!subjKeys.length) { cv.style.display = 'none'; return; }
+  cv.style.display = 'block';
+
+  var allDates = [...new Set(rounds.map(function(r){ return r.date; }))].sort();
+  var datasets = subjKeys.map(function(subj) {
+    return allDates.map(function(d) {
+      var e = bySubj[subj].find(function(x){ return x.date === d; });
+      return e ? e.pct : null;
+    });
+  });
+  var colors = subjKeys.map(function(s){ return scolor(s); });
+  var labels  = allDates.map(function(d){ return d.slice(5); });
+
+  // ── 通常Canvas: 数値なし・タップで拡大モーダルを開く ─────────────
+  var dpr = window.devicePixelRatio || 1;
+  var W = cv.offsetWidth || window.innerWidth - 36;
+  cv.width = W * dpr; cv.height = 240 * dpr;
+  cv.style.width = W + 'px'; cv.style.height = '240px';
+  var ctx = cv.getContext('2d'); ctx.scale(dpr, dpr);
+  drawLineChart(ctx, W, 240, datasets, labels, colors, subjKeys, false, null);
+
+  cv.onclick = function() { openAnZoom(datasets, labels, colors, subjKeys); };
+}
+
+/**
+ * 拡大モーダルを開く。
+ * ドットをタップ/クリックすると教科名+数値バルーンを表示。
+ * 何もタップしていない状態では数値非表示。
+ */
+// [render] openAnZoom
+function openAnZoom(datasets, labels, colors, subjKeys) {
+  var prev = document.getElementById('an-zoom-overlay'); if (prev) prev.remove();
+
+  var ov = document.createElement('div');
+  ov.id = 'an-zoom-overlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:1100;'
+    + 'display:flex;align-items:center;justify-content:center;padding:16px';
+
+  var box = document.createElement('div');
+  box.style.cssText = 'background:var(--card);border-radius:14px;padding:16px 16px 12px;'
+    + 'width:100%;max-width:600px;border-top:2px solid var(--ac)';
+
+  var ttl = document.createElement('div');
+  ttl.style.cssText = 'font-size:13px;font-weight:800;color:var(--ac2);margin-bottom:10px';
+  ttl.textContent = curTType + ' 成績トレンド';
+
+  var hint = document.createElement('div');
+  hint.style.cssText = 'font-size:10px;color:var(--t3);text-align:center;margin-bottom:8px';
+  hint.textContent = '点をタップすると数値を表示';
+
+  var cv2 = document.createElement('canvas');
+  cv2.style.cssText = 'width:100%;display:block;touch-action:none;cursor:pointer';
+  cv2.height = 340;
+
+  var closeBtn = document.createElement('button');
+  closeBtn.className = 'btn bs';
+  closeBtn.style.cssText = 'width:100%;justify-content:center;margin-top:12px';
+  closeBtn.textContent = '閉じる';
+  closeBtn.onclick = function(){ ov.remove(); };
+
+  box.appendChild(ttl);
+  box.appendChild(hint);
+  box.appendChild(cv2);
+  box.appendChild(closeBtn);
+  ov.appendChild(box);
+  ov.addEventListener('click', function(e){ if (e.target === ov) ov.remove(); });
+  document.body.appendChild(ov);
+
+  // Canvas描画（アクティブ点なしで初期描画）
+  var activePt = null;
+  var dpr2 = window.devicePixelRatio || 1;
+
+  function render() {
+    var W2 = cv2.offsetWidth || 560, H2 = 340;
+    if (cv2.width !== W2 * dpr2 || cv2.height !== H2 * dpr2) {
+      cv2.width = W2 * dpr2; cv2.height = H2 * dpr2;
+      cv2.style.width = W2 + 'px'; cv2.style.height = H2 + 'px';
+    }
+    var ctx2 = cv2.getContext('2d'); ctx2.scale(dpr2, dpr2);
+    drawLineChart(ctx2, W2, H2, datasets, labels, colors, subjKeys, false, activePt);
+  }
+
+  requestAnimationFrame(render);
+
+  // ── タップ/クリックで最近傍ドットを選択 ─────────────────────────
+  var DOT_R = 24; // タップ判定半径(px)
+
+  function findNearestDot(clientX, clientY) {
+    var rect = cv2.getBoundingClientRect();
+    var W2 = cv2.offsetWidth || 560, H2 = 340;
+    var n = labels.length;
+    var legH = (subjKeys && subjKeys.length > 1) ? Math.min(subjKeys.length, 8) * 14 + 8 : 0;
+    var pd = {t: 20, r: 14, b: 32, l: 38};
+    var gW = W2 - pd.l - pd.r, gH = H2 - pd.t - pd.b - legH;
+
+    var allVals = [];
+    datasets.forEach(function(d){ d.forEach(function(v){ if (v != null) allVals.push(v); }); });
+    if (!allVals.length) return null;
+    var mn = Math.max(0, Math.min.apply(null, allVals) - 10);
+    var mx = Math.min(100, Math.max.apply(null, allVals) + 10);
+    if (mx - mn < 10) { mn = Math.max(0, mn - 5); mx = Math.min(100, mx + 5); }
+    var rng = mx - mn || 1;
+
+    var cx = clientX - rect.left, cy = clientY - rect.top;
+    var best = null, bestD = DOT_R;
+
+    datasets.forEach(function(data, di) {
+      data.forEach(function(v, i) {
+        if (v === null) return;
+        var px = pd.l + (n === 1 ? gW / 2 : i / (n - 1) * gW);
+        var py = pd.t + gH - ((v - mn) / rng * gH);
+        var d = Math.sqrt((cx - px) * (cx - px) + (cy - py) * (cy - py));
+        if (d < bestD) { bestD = d; best = {di: di, i: i}; }
+      });
+    });
+    return best;
+  }
+
+  function onTap(clientX, clientY) {
+    var pt = findNearestDot(clientX, clientY);
+    if (pt && activePt && activePt.di === pt.di && activePt.i === pt.i) {
+      // 同じ点をもう一度タップ → 非表示
+      activePt = null;
+    } else {
+      activePt = pt;
+    }
+    // Canvasを再スケールしてから再描画
+    var W2 = cv2.offsetWidth || 560, H2 = 340;
+    cv2.width = W2 * dpr2; cv2.height = H2 * dpr2;
+    cv2.style.width = W2 + 'px'; cv2.style.height = H2 + 'px';
+    var ctx2 = cv2.getContext('2d'); ctx2.scale(dpr2, dpr2);
+    drawLineChart(ctx2, W2, H2, datasets, labels, colors, subjKeys, false, activePt);
+  }
+
+  cv2.addEventListener('click', function(e) {
+    onTap(e.clientX, e.clientY);
+  });
+  cv2.addEventListener('touchend', function(e) {
+    e.preventDefault();
+    if (e.changedTouches.length) onTap(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
+  }, {passive: false});
+}
+
+/**
+ * 折れ線グラフ描画
+ * showValues: true のとき各点に数値ラベルを表示（拡大モーダル用）
+ * activePt:   {di, i} で指定した点を強調し数値バルーンを出す（タップ用）
+ */
+// [render] drawLineChart
+function drawLineChart(ctx, W, H, datasets, labels, colors, names, showValues, activePt) {
+  ctx.clearRect(0, 0, W, H);
+  var n = labels.length; if (!n) return;
+  var legH = (names && names.length > 1) ? Math.min(names.length, 8) * 14 + 8 : 0;
+  var pd = {t: 20, r: 14, b: 32, l: 38};
+  var gW = W - pd.l - pd.r;
+  var gH = H - pd.t - pd.b - legH;
+  if (gW <= 0 || gH <= 0) return;
+
+  var allVals = [];
+  datasets.forEach(function(d){ d.forEach(function(v){ if (v != null) allVals.push(v); }); });
+  if (!allVals.length) return;
+  var mn = Math.max(0, Math.min.apply(null, allVals) - 10);
+  var mx = Math.min(100, Math.max.apply(null, allVals) + 10);
+  if (mx - mn < 10) { mn = Math.max(0, mn - 5); mx = Math.min(100, mx + 5); }
+  var rng = mx - mn || 1;
+
+  function ptX(i) { return pd.l + (n === 1 ? gW / 2 : i / (n - 1) * gW); }
+  function ptY(v) { return pd.t + gH - ((v - mn) / rng * gH); }
+
+  // Grid lines + Y labels
+  ctx.strokeStyle = '#cfe6f4'; ctx.lineWidth = 0.5;
+  [0, 20, 40, 60, 80, 100].forEach(function(v) {
+    if (v < mn || v > mx) return;
+    var y = ptY(v);
+    ctx.beginPath(); ctx.moveTo(pd.l, y); ctx.lineTo(W - pd.r, y); ctx.stroke();
+    ctx.fillStyle = '#8aa4b4'; ctx.font = '10px sans-serif'; ctx.textAlign = 'right';
+    ctx.fillText(v, pd.l - 3, y + 3);
+  });
+
+  // X labels
+  labels.forEach(function(lb, i) {
+    ctx.fillStyle = '#8aa4b4'; ctx.font = '9px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText(lb, ptX(i), H - legH - 4);
+  });
+
+  // Lines + fill + dots
+  datasets.forEach(function(data, di) {
+    var color = colors[di] || CFG.DEFAULT_COLOR;
+
+    // Line
+    ctx.beginPath(); ctx.strokeStyle = color; ctx.lineWidth = 2.5; ctx.lineJoin = 'round';
+    var started = false;
+    data.forEach(function(v, i) {
+      if (v === null) { started = false; return; }
+      if (!started) { ctx.moveTo(ptX(i), ptY(v)); started = true; }
+      else ctx.lineTo(ptX(i), ptY(v));
+    });
+    ctx.stroke();
+
+    // Gradient fill (1 dataset only)
+    if (datasets.length === 1) {
+      ctx.save();
+      var grad = ctx.createLinearGradient(0, pd.t, 0, pd.t + gH);
+      grad.addColorStop(0, color + '40'); grad.addColorStop(1, color + '05');
+      ctx.beginPath();
+      var pts = data.map(function(v, i){ return v != null ? {x: ptX(i), y: ptY(v)} : null; }).filter(Boolean);
+      if (pts.length >= 2) {
+        ctx.moveTo(pts[0].x, pd.t + gH);
+        pts.forEach(function(p){ ctx.lineTo(p.x, p.y); });
+        ctx.lineTo(pts[pts.length - 1].x, pd.t + gH);
+        ctx.closePath(); ctx.fillStyle = grad; ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    // Dots
+    data.forEach(function(v, i) {
+      if (v === null) return;
+      var x = ptX(i), y = ptY(v);
+      var isActive = activePt && activePt.di === di && activePt.i === i;
+      var r = isActive ? 6 : 4;
+      ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fillStyle = color; ctx.fill();
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = isActive ? 2.5 : 1.5; ctx.stroke();
+
+      // 数値ラベル（showValues=true か、この点がアクティブな場合）
+      if (showValues || isActive) {
+        var vc = v >= 80 ? '#3aaa72' : v >= 60 ? '#e09030' : '#d84848';
+        ctx.fillStyle = vc; ctx.font = 'bold 9px sans-serif'; ctx.textAlign = 'center';
+        ctx.fillText(v + '%', x, y - 10);
+      }
+    });
+
+    // Legend
+    if (names && names.length > 1 && legH > 0) {
+      var ly = H - legH + di * 14 + 7;
+      if (ly < H) {
+        ctx.fillStyle = color; ctx.fillRect(pd.l, ly - 4, 14, 8);
+        ctx.fillStyle = '#4a6478'; ctx.font = '10px sans-serif'; ctx.textAlign = 'left';
+        ctx.fillText(names[di].slice(0, 6), pd.l + 18, ly + 3);
+      }
+    }
+  });
+
+  // アクティブ点のバルーン（教科名 + 数値）
+  if (activePt) {
+    var di = activePt.di, ii = activePt.i;
+    var v = datasets[di] && datasets[di][ii];
+    if (v != null) {
+      var x = ptX(ii), y = ptY(v);
+      var label = (names && names[di] ? names[di] : '') + ' ' + v + '%';
+      var bw = ctx.measureText(label).width + 16;
+      var bh = 22, bx = Math.min(Math.max(x - bw / 2, pd.l), W - pd.r - bw), by = y - bh - 10;
+      if (by < 4) by = y + 14;
+      // バルーン背景
+      ctx.save();
+      ctx.fillStyle = 'rgba(28,42,54,0.88)';
+      ctx.beginPath();
+      var br = 6;
+      ctx.moveTo(bx + br, by); ctx.lineTo(bx + bw - br, by);
+      ctx.arcTo(bx + bw, by, bx + bw, by + br, br);
+      ctx.lineTo(bx + bw, by + bh - br);
+      ctx.arcTo(bx + bw, by + bh, bx + bw - br, by + bh, br);
+      ctx.lineTo(bx + br, by + bh);
+      ctx.arcTo(bx, by + bh, bx, by + bh - br, br);
+      ctx.lineTo(bx, by + br);
+      ctx.arcTo(bx, by, bx + br, by, br);
+      ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#fff'; ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText(label, bx + bw / 2, by + 15);
+      ctx.restore();
+    }
+  }
+}
+
+
+// §15 BADGE SYSTEM ──────────────────────────
+// 実績定義 (BADGE_DEFS) と表示・判定ロジック。
+//
+// ★ 実績を追加するには:
+//   1. BADGE_DEFS 配列に {id, icon, name, hint, tier, check} オブジェクトを追加
+//   2. tier: 1=第一歩 / 2=天界学園 / 3=ケツイを力に / 4=ゴリラ
+//            5=THE ABSOLUTE IDOL / 6=最高難易度 / 0=ネタ実績
+//   3. hint: 達成条件テキスト（ネタ実績は '' → ヒント非表示）
+//   4. check: function(){ return bool; }  ← S を直接参照してよい
+var BADGE_DEFS=[
+  // ── Tier 1 第一歩 ──────────────────────────────────────
+  {id:'t1_hey',     icon:'🎙️', name:'へい',
+   hint:'タイマーを使う',
+   tier:1, check:function(){return (S.sessions||[]).length>=1;}},
+
+  {id:'t1_star',    icon:'💫',  name:'💫',
+   hint:'暗記カードを使う',
+   tier:1, check:function(){
+     return (S.decks||[]).some(function(d){
+       return (d.cards||[]).some(function(c){return (c.reps||0)>=1;});
+     });
+   }},
+
+  {id:'t1_ghost',   icon:'👻',  name:'ゴーストルール',
+   hint:'スキルを追加する',
+   tier:1, check:function(){
+     return Object.values(S.skills).some(function(arr){return arr.length>=1;});
+   }},
+
+  {id:'t1_josiki',  icon:'🧠',  name:'常識忍',
+   hint:'テスト結果を記録する',
+   tier:1, check:function(){return (S.rounds||[]).length>=1;}},
+
+  {id:'t1_ikadai',  icon:'🛶',  name:'いかだいで！',
+   hint:'累計1時間を突破する',
+   tier:1, check:function(){
+     return (S.sessions||[]).reduce(function(a,s){return a+s.dur;},0)>=CFG.MS._1H;
+   }},
+
+  {id:'t1_3day',    icon:'🔥',  name:'3日坊主じゃなかった',
+   hint:'3日連続で勉強する',
+   tier:1, check:function(){return (S.streak||0)>=3;}},
+
+  {id:'t1_10cards', icon:'🃏',  name:'そんな聞かれないことある！？',
+   hint:'10枚の暗記カードに答える',
+   tier:1, check:function(){
+     return (S.decks||[]).reduce(function(a,d){
+       return a+(d.cards||[]).filter(function(c){return (c.reps||0)>=1;}).length;
+     },0)>=10;
+   }},
+
+  {id:'t1_5tasks',  icon:'✅',  name:'ふざけんなよマジで',
+   hint:'5件のタスクをクリアする',
+   tier:1, check:function(){
+     return (S.events||[]).filter(function(e){return e.done;}).length>=5;
+   }},
+
+  {id:'t1_5decks',  icon:'📦',  name:'多重スパイ',
+   hint:'5個以上デッキをつくる',
+   tier:1, check:function(){return (S.decks||[]).length>=5;}},
+
+  {id:'t1_1hcont',  icon:'⏱️',  name:'魔界村毎日はやめましょう',
+   hint:'1時間連続で勉強する',
+   tier:1, check:function(){return S.todayMs>=CFG.MS._1H;}},
+
+  {id:'t1_5day',    icon:'⚡',  name:'abyaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+   hint:'5日間連続で勉強する',
+   tier:1, check:function(){return (S.streak||0)>=5;}},
+
+  {id:'t1_3daycard',icon:'📝',  name:'ありがちょ',
+   hint:'3日間連続で暗記カードに取り組む',
+   tier:1, check:function(){
+     var days=[];
+     (S.sessions||[]).forEach(function(s){
+       var ds=localDateStr(new Date(s.ts));
+       if(!days.includes(ds))days.push(ds);
+     });
+     if(days.length<3)return false;
+     days.sort();
+     for(var i=0;i<=days.length-3;i++){
+       var d0=new Date(days[i]+'T00:00:00');
+       var d1=new Date(days[i+1]+'T00:00:00');
+       var d2=new Date(days[i+2]+'T00:00:00');
+       if((d1-d0)=== CFG.MS._1DAY&&(d2-d1)=== CFG.MS._1DAY)return true;
+     }
+     return false;
+   }},
+
+  {id:'t1_bg',      icon:'🖼️',  name:'精神病棟よりマシ',
+   hint:'背景画像を設定する',
+   tier:1, check:function(){return !!(S.settings&&S.settings.bg);}},
+
+  {id:'t1_10tasks', icon:'📋',  name:'かなたそなにする',
+   hint:'10件タスクを設定する',
+   tier:1, check:function(){return (S.events||[]).length>=10;}},
+
+  {id:'t1_5sk',     icon:'⭐',  name:'PPじゃないんだよ',
+   hint:'5件のスキルを達成する',
+   tier:1, check:function(){
+     return Object.values(S.skills).reduce(function(a,arr){
+       return a+arr.filter(function(s){return s.status==='done';}).length;
+     },0)>=5;
+   }},
+
+  {id:'t1_10sk',    icon:'✨',  name:'点が…点のまま…点ですね…',
+   hint:'10件のスキルを達成する',
+   tier:1, check:function(){
+     return Object.values(S.skills).reduce(function(a,arr){
+       return a+arr.filter(function(s){return s.status==='done';}).length;
+     },0)>=10;
+   }},
+
+  {id:'t1_3test',   icon:'📊',  name:'パワーポイントは裏切らない',
+   hint:'テスト結果を3件追加する',
+   tier:1, check:function(){return (S.rounds||[]).length>=3;}},
+
+  // ── Tier 2 天界学園 ────────────────────────────────────
+  {id:'t2_7day',    icon:'🌟',  name:'ソーラン節会場',
+   hint:'7日間連続学習',
+   tier:2, check:function(){return (S.streak||0)>=7;}},
+
+  {id:'t2_10h',     icon:'📖',  name:'友人C子も驚く',
+   hint:'累計10時間突破',
+   tier:2, check:function(){
+     return (S.sessions||[]).reduce(function(a,s){return a+s.dur;},0)>=CFG.MS._10H;
+   }},
+
+  {id:'t2_70',      icon:'🎯',  name:'あまねかなたち',
+   hint:'テストで70点超える',
+   tier:2, check:function(){
+     return (S.rounds||[]).some(function(r){
+       return Object.values(r.scores||{}).some(function(s){
+         return s.max>0&&s.score/s.max>=0.7;
+       });
+     });
+   }},
+
+  {id:'t2_80',      icon:'🏹',  name:'くるちゅれ',
+   hint:'テストで80点超える',
+   tier:2, check:function(){
+     return (S.rounds||[]).some(function(r){
+       return Object.values(r.scores||{}).some(function(s){
+         return s.max>0&&s.score/s.max>=0.8;
+       });
+     });
+   }},
+
+  {id:'t2_10sk2',   icon:'🌱',  name:'の、段！',
+   hint:'10件のスキルを達成する',
+   tier:2, check:function(){
+     return Object.values(S.skills).reduce(function(a,arr){
+       return a+arr.filter(function(s){return s.status==='done';}).length;
+     },0)>=10;
+   }},
+
+  {id:'t2_10test',  icon:'🎖️',  name:'むま',
+   hint:'10件テスト結果を記入する',
+   tier:2, check:function(){return (S.rounds||[]).length>=10;}},
+
+  {id:'t2_14day',   icon:'🌙',  name:'オウムになったら即終了',
+   hint:'14日間連続で学習する',
+   tier:2, check:function(){return (S.streak||0)>=14;}},
+
+  {id:'t2_low5',    icon:'😱',  name:'あわれなかなたそ',
+   hint:'正答率が5%を下回る',
+   tier:2, check:function(){
+     var total=0,ok=0;
+     (S.decks||[]).forEach(function(d){
+       (d.cards||[]).forEach(function(c){
+         if((c.reps||0)>0){total++;if(c.status==='ok')ok++;}
+       });
+     });
+     return total>=20&&ok/total<0.05;
+   }},
+
+  {id:'t2_50cards', icon:'💪',  name:'握力50kg',
+   hint:'50枚暗記カードに正解する',
+   tier:2, check:function(){
+     return (S.decks||[]).reduce(function(a,d){
+       return a+(d.cards||[]).filter(function(c){return c.status==='ok';}).length;
+     },0)>=50;
+   }},
+
+  {id:'t2_30day',   icon:'💎',  name:'★これが１ヵ月の成果★',
+   hint:'30日勉強する',
+   tier:2, check:function(){
+     return new Set((S.sessions||[]).map(function(s){
+       return localDateStr(new Date(s.ts));
+     })).size>=30;
+   }},
+
+  // ── Tier 3 ケツイを力に ────────────────────────────────
+  {id:'t3_104h',    icon:'🔱',  name:'ケツイを力に変えるんだ',
+   hint:'累計104時間勉強する',
+   tier:3, check:function(){
+     return (S.sessions||[]).reduce(function(a,s){return a+s.dur;},0)>=CFG.MS._104H;
+   }},
+
+  {id:'t3_90',      icon:'🎵',  name:'そういう曲なのか！？',
+   hint:'テストで90点超える',
+   tier:3, check:function(){
+     return (S.rounds||[]).some(function(r){
+       return Object.values(r.scores||{}).some(function(s){
+         return s.max>0&&s.score/s.max>=0.9;
+       });
+     });
+   }},
+
+  {id:'t3_27h',     icon:'🦕',  name:'ARK',
+   hint:'累計27時間勉強',
+   tier:3, check:function(){
+     return (S.sessions||[]).reduce(function(a,s){return a+s.dur;},0)>=CFG.MS._27H;
+   }},
+
+  {id:'t3_1227dk',  icon:'💙',  name:'忠誠村上',
+   hint:'1227枚暗記カードをつくる',
+   tier:3, check:function(){
+     return (S.decks||[]).reduce(function(a,d){return a+(d.cards||[]).length;},0)>=1227;
+   }},
+
+  {id:'t3_50sk',    icon:'🌌',  name:'おい沙花叉',
+   hint:'50件のスキルを達成する',
+   tier:3, check:function(){
+     return Object.values(S.skills).reduce(function(a,arr){
+       return a+arr.filter(function(s){return s.status==='done';}).length;
+     },0)>=50;
+   }},
+
+  {id:'t3_5h1day',  icon:'🌊',  name:'野菜もらってうれしそうにしてるからアイツ！',
+   hint:'一日5時間勉強する',
+   tier:3, check:function(){return S.todayMs>=CFG.MS._5H;}},
+
+  {id:'t3_allsubj', icon:'🗺️',  name:'全教科制覇への第一歩',
+   hint:'全教科で一つ以上のスキルを設定する',
+   tier:3, check:function(){
+     return CFG.SUBJECTS.every(function(s){return (S.skills[s]||[]).length>=1;});
+   }},
+
+  {id:'t3_conan80', icon:'🔍',  name:'コナン詠唱',
+   hint:'暗記カード一回の正答率が80%を超える',
+   tier:3, check:function(){
+     return (S.decks||[]).some(function(d){
+       var ans=(d.cards||[]).filter(function(c){return (c.reps||0)>0;});
+       if(ans.length<10)return false;
+       return ans.filter(function(c){return c.status==='ok';}).length/ans.length>0.8;
+     });
+   }},
+
+  {id:'t3_422ok',   icon:'💛',  name:'422枚の絆',
+   hint:'422枚暗記カードに正解する',
+   tier:3, check:function(){
+     return (S.decks||[]).reduce(function(a,d){
+       return a+(d.cards||[]).filter(function(c){return c.status==='ok';}).length;
+     },0)>=422;
+   }},
+
+  // ── Tier 4 ゴリラ ──────────────────────────────────────
+  {id:'t4_422h',    icon:'🦍',  name:'この世のものは弱すぎる',
+   hint:'累計422時間勉強する',
+   tier:4, check:function(){
+     return (S.sessions||[]).reduce(function(a,s){return a+s.dur;},0)>=CFG.MS._422H;
+   }},
+
+  {id:'t4_1227sk',  icon:'💜',  name:'かなルーナ記念日',
+   hint:'1227件スキルを習得する',
+   tier:4, check:function(){
+     return Object.values(S.skills).reduce(function(a,arr){
+       return a+arr.filter(function(s){return s.status==='done';}).length;
+     },0)>=1227;
+   }},
+
+  {id:'t4_6hcont',  icon:'💥',  name:'壊す所だった、危ねぇ危ねぇ',
+   hint:'一日の勉強時間が連続6時間を超える',
+   tier:4, check:function(){return S.todayMs>=CFG.MS._6H;}},
+
+  {id:'t4_alltmr',  icon:'❤️',  name:'いつも観てくれてるへい民のみんなー！……大好き。',
+   hint:'全教科でタイマーを使用する',
+   tier:4, check:function(){
+     var used=new Set((S.sessions||[]).map(function(s){return s.subj;}));
+     return CFG.SUBJECTS.every(function(s){return used.has(s);});
+   }},
+
+  {id:'t4_allok',   icon:'🔮',  name:'俺の名前は工藤新一。',
+   hint:'暗記デッキで全問正解する',
+   tier:4, check:function(){
+     return (S.decks||[]).some(function(d){
+       var c=d.cards||[];
+       return c.length>=5&&c.every(function(x){return x.status==='ok';});
+     });
+   }},
+
+  {id:'t4_21day',   icon:'🌸',  name:'道連れにしてやった',
+   hint:'21日連続で学習する',
+   tier:4, check:function(){return (S.streak||0)>=21;}},
+
+  {id:'t4_allskdone',icon:'🎓', name:'天才か？',
+   hint:'全教科で一つ以上スキルを達成する',
+   tier:4, check:function(){
+     return CFG.SUBJECTS.every(function(s){
+       return (S.skills[s]||[]).some(function(sk){return sk.status==='done';});
+     });
+   }},
+
+  {id:'t4_90plus',  icon:'🦅',  name:'赤子の手をひねりつぶす',
+   hint:'暗記カード一回の正答率が90%を超える',
+   tier:4, check:function(){
+     return (S.decks||[]).some(function(d){
+       var ans=(d.cards||[]).filter(function(c){return (c.reps||0)>0;});
+       if(ans.length<10)return false;
+       return ans.filter(function(c){return c.status==='ok';}).length/ans.length>0.9;
+     });
+   }},
+
+  // ── Tier 5 THE ABSOLUTE IDOL ───────────────────────────
+  {id:'t5_1227ok',  icon:'🌠',  name:'世界で一番のアイドル',
+   hint:'累計1227枚暗記カードに正解する',
+   tier:5, check:function(){
+     return (S.decks||[]).reduce(function(a,d){
+       return a+(d.cards||[]).filter(function(c){return c.status==='ok';}).length;
+     },0)>=1227;
+   }},
+
+  {id:'t5_15test',  icon:'🏆',  name:'ゴッドモニング',
+   hint:'テストを15回記録する',
+   tier:5, check:function(){return (S.rounds||[]).length>=15;}},
+
+  {id:'t5_422day',  icon:'🌈',  name:'明日はなか卯食べる',
+   hint:'422日連続で学習する',
+   tier:5, check:function(){return (S.streak||0)>=422;}},
+
+  {id:'t5_2day8h',  icon:'🏠',  name:'同居ーず',
+   hint:'2日間連続して累計8時間以上勉強する',
+   tier:5, check:function(){
+     var byDay={};
+     (S.sessions||[]).forEach(function(s){
+       var ds=localDateStr(new Date(s.ts));
+       byDay[ds]=(byDay[ds]||0)+s.dur;
+     });
+     var days=Object.keys(byDay).sort();
+     for(var i=0;i<days.length-1;i++){
+       var d0=new Date(days[i]+'T00:00:00');
+       var d1=new Date(days[i+1]+'T00:00:00');
+       if((d1-d0)=== CFG.MS._1DAY
+         &&byDay[days[i]]>=CFG.MS._4H
+         &&byDay[days[i+1]]>=CFG.MS._4H)return true;
+     }
+     return false;
+   }},
+
+  // ── 最高難易度 ─────────────────────────────────────────
+  {id:'t6_1227h',   icon:'👑',  name:'誰も見てない夢を見ろ',
+   hint:'累計勉強時間1227時間',
+   tier:6, check:function(){
+     return (S.sessions||[]).reduce(function(a,s){return a+s.dur;},0)>=CFG.MS._1227H;
+   }},
+
+  // ── ネタ実績 (tier:0) hint:'' → ヒントなし ─────────────
+  {id:'g_king',     icon:'👑',  name:'キングオブあんぽんたん',   hint:'一日の内に20回以上セッションを記録する', tier:0,
+   check:function(){
+     // 20以上の暗記デッキを一日の内に回答（セッション数で代替）
+     var td=localDateStr(new Date());
+     return (S.sessions||[]).filter(function(s){
+       return localDateStr(new Date(s.ts))===td;
+     }).length>=20;
+   }},
+
+  {id:'g_omya',     icon:'😤',  name:'おみゃーら',               hint:'一日の勉強時間が6時間を超える', tier:0,
+   check:function(){
+     // 一つの教科を連続して6時間勉強
+     return S.todayMs>=CFG.MS._6H;
+   }},
+
+  {id:'g_unaju',    icon:'🍱',  name:'うな重',                   hint:'数学の暗記カードで不正解になる', tier:0,
+   check:function(){
+     // 数学の暗記カードで不正解
+     return (S.decks||[]).some(function(d){
+       return d.subj==='数学'&&(d.cards||[]).some(function(c){return c.status==='ng';});
+     });
+   }},
+
+  {id:'g_matcho',   icon:'⏹️',  name:'まっちょ',                 hint:'10秒以内にタイマーを切る', tier:0,
+   check:function(){
+     // 10秒以内にタイマーを切る
+     return (S.sessions||[]).some(function(s){return s.dur > 0 && s.dur < CFG.MS._10S;});
+   }},
+
+  {id:'g_totsu',    icon:'📭',  name:'凸待ち0人',                hint:'一日のタスクが20件を超える', tier:0,
+   check:function(){
+     // 一日のタスクが20件を超える
+     var td=localDateStr(new Date());
+     return (S.events||[]).filter(function(e){return e.date===td;}).length>=20;
+   }},
+
+  {id:'g_kimochi',  icon:'↕️',  name:'相反する気持ちを持つのも心だろ！', hint:'前日の4倍以上勉強する', tier:0,
+   check:function(){
+     // 前日の4倍以上勉強
+     var byDay={};
+     (S.sessions||[]).forEach(function(s){
+       var ds=localDateStr(new Date(s.ts));byDay[ds]=(byDay[ds]||0)+s.dur;
+     });
+     var td=localDateStr(new Date());
+     var yd=localDateStr(new Date(Date.now()-CFG.MS._1DAY));
+     return !!(byDay[yd]&&byDay[td]&&byDay[td]>=byDay[yd]*4);
+   }},
+
+  {id:'g_biden',    icon:'🗳️',  name:'バイデンって誰？',          hint:'英語カードで連続104問不正解になる', tier:0,
+   check:function(){
+     // 英語カードで連続104問不正解
+     var streak=0,max=0;
+     (S.decks||[]).forEach(function(d){
+       if(d.subj!=='英語')return;
+       (d.cards||[]).forEach(function(c){
+         if(c.status==='ng'){streak++;if(streak>max)max=streak;}else{streak=0;}
+       });
+     });
+     return max>=104;
+   }},
+
+  {id:'g_conanota', icon:'🕵️',  name:'重度のコナンオタク',        hint:'10日間連続して同じ教科だけを学習する', tier:0,
+   check:function(){
+     // 10日間連続して同じ教科だけを学習
+     var byDay={};
+     (S.sessions||[]).forEach(function(s){
+       var ds=localDateStr(new Date(s.ts));
+       if(!byDay[ds])byDay[ds]=new Set();
+       byDay[ds].add(s.subj);
+     });
+     var keys=Object.keys(byDay).sort();
+     for(var i=0;i<=keys.length-10;i++){
+       var subj0=null,ok=true;
+       for(var j=i;j<i+10;j++){
+         var d0=new Date(keys[i]+'T00:00:00');
+         var dj=new Date(keys[j]+'T00:00:00');
+         if((dj-d0)!==(j-i)*CFG.MS._1DAY){ok=false;break;}
+         var st=[...byDay[keys[j]]];
+         if(st.length>1){ok=false;break;}
+         if(j===i)subj0=st[0];
+         else if(st[0]!==subj0){ok=false;break;}
+       }
+       if(ok)return true;
+     }
+     return false;
+   }},
+
+  {id:'g_1dalada',  icon:'🎶',  name:'1ダラダー',                hint:'タイマーで5時間2分きっかり勉強する', tier:0,
+   check:function(){
+     // 5時間2分きっかり（±30秒）
+     return (S.sessions||[]).some(function(s){
+       return Math.abs(s.dur - CFG.MS._5H2M) <= CFG.MS._30S;
+     });
+   }},
+
+  {id:'g_shunenn',  icon:'🎂',  name:'周年だね',                 hint:'4月22日に勉強する', tier:0,
+   check:function(){
+     // 4/22に勉強する
+     var td=localDateStr(new Date());
+     return td.slice(5)==='04-22'
+       &&(S.sessions||[]).some(function(s){return localDateStr(new Date(s.ts))===td;});
+   }},
+];
+
+// pBadge: Tier名・色を更新
+// [render] pBadge
+function pBadge(){
+  var earned=new Set(S.earnedBadges);
+  var dates=S.earnedDates||{};
+  var tNames=['','Tier 1  第一歩','Tier 2  天界学園','Tier 3  ケツイを力に',
+              'Tier 4  ゴリラ','Tier 5  THE ABSOLUTE IDOL','最高難易度'];
+  var tColors=['','#8aa4b4','#3aaa72','#76c0ea','#e09030','#d84848','#d84848'];
+  var nonGag=BADGE_DEFS.filter(function(b){return b.tier>0;});
+  var allEarned=S.earnedBadges.length;
+  var pct=BADGE_DEFS.length?Math.round(allEarned/BADGE_DEFS.length*100):0;
+  var out='';
+  out+='<div class="ph"><div style="display:flex;align-items:center;gap:8px">';
+  out+='<button class="btn bs sm" onclick="go(\'grades\')" style="padding:5px 10px">← 成績</button>';
+  out+='<div class="pt">実績</div></div>';
+  out+='<div class="ps">'+allEarned+'/'+BADGE_DEFS.length+' 解除済</div></div>';
+  out+='<div class="card"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px">';
+  out+='<span>達成率</span><b style="color:var(--ac2)">'+pct+'%</b></div>';
+  out+='<div class="lb" style="height:10px"><div class="lbf" style="width:'+pct+'%;background:var(--ac)"></div></div></div>';
+  for(var tier=1;tier<=6;tier++){
+    var tb=BADGE_DEFS.filter(function(b){return b.tier===tier;});
+    if(!tb.length)continue;
+    var ec=tb.filter(function(b){return earned.has(b.id);}).length;
+    out+='<div style="font-size:10px;font-weight:700;color:'+tColors[tier]
+      +';margin:14px 0 8px;letter-spacing:.8px">'+tNames[tier]+' ('+ec+'/'+tb.length+')</div>';
+    out+='<div class="badge-grid">';
+    tb.forEach(function(b){out+=makeBadgeCard(b,earned,dates,false);});
+    out+='</div>';
+  }
+  var gag=BADGE_DEFS.filter(function(b){return b.tier===0;});
+  if(gag.length){
+    var eg=gag.filter(function(b){return earned.has(b.id);}).length;
+    out+='<div style="font-size:10px;font-weight:700;color:#8aa4b4;margin:14px 0 8px;letter-spacing:.8px">'
+      +'ネタ実績 ('+eg+'/'+gag.length+')</div>';
+    out+='<div class="badge-grid">';
+    gag.forEach(function(b){out+=makeBadgeCard(b,earned,dates,true);});
+    out+='</div>';
+  }
+  return out;
+}
+
+// [render] makeBadgeCard: バッジカードのHTML文字列を返す（副作用なし）
+function makeBadgeCard(b, earned, dates, isGag) {
+  const e      = earned.has(b.id);
+  const border = isGag ? 'border-style:dashed' : '';
+  const dateH  = e && dates[b.id]
+    ? `<div style="font-size:9px;color:var(--t3);margin-top:3px">${dates[b.id]}</div>`
+    : '';
+  const hintH = e
+    ? (b.hint ? `<div style="font-size:9px;color:var(--ac2);line-height:1.4;margin-top:2px">${b.hint}</div>` : '')
+    : (!isGag && b.hint
+        ? `<div style="font-size:9px;color:var(--t3);line-height:1.4;margin-top:2px">💡 ${b.hint}</div>`
+        : `<div style="font-size:9px;color:var(--t3);line-height:1.4;margin-top:2px">???</div>`);
+
+  return `<div class="badge-card ${e ? 'earned' : ''}" onclick="showAchDetail(this)"
+    data-bid="${b.id}" style="cursor:pointer;${border}">
+    <span class="badge-icon" style="font-size:22px">${e ? b.icon : '?'}</span>
+    <div style="font-size:11px;font-weight:700;margin-bottom:2px">${e ? b.name : '???'}</div>
+    ${hintH}${dateH}
+  </div>`;
+}
+
+// showAchDetail: hintを表示
+// [render] showAchDetail
+function showAchDetail(el){
+  var id=el.getAttribute('data-bid');
+  var b=BADGE_DEFS.find(function(x){return x.id===id;});
+  if(!b)return;
+  var isEarned=S.earnedBadges.includes(id);
+  var dates=S.earnedDates||{};
+  var tierNames=['ネタ','Tier 1 第一歩','Tier 2 天界学園','Tier 3 ケツイを力に',
+                 'Tier 4 ゴリラ','Tier 5 THE ABSOLUTE IDOL','最高難易度'];
+  var prev=document.getElementById('ach-detail-overlay');if(prev)prev.remove();
+  var overlay=document.createElement('div');
+  overlay.id='ach-detail-overlay';
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1100;'
+    +'display:flex;align-items:flex-end;justify-content:center';
+  var box=document.createElement('div');
+  box.style.cssText='background:var(--card);border-radius:14px 14px 0 0;padding:24px 20px;'
+    +'width:100%;max-width:480px;padding-bottom:calc(20px + var(--sb));border-top:2px solid var(--ac)';
+  var center=document.createElement('div');
+  center.style.textAlign='center';
+  var iconEl=document.createElement('div');
+  iconEl.style.cssText='font-size:40px;margin-bottom:8px';
+  iconEl.textContent=isEarned?b.icon:'?';
+  var nameEl=document.createElement('div');
+  nameEl.style.cssText='font-size:18px;font-weight:800;margin-bottom:4px';
+  nameEl.textContent=isEarned?b.name:'???';
+  var tierEl=document.createElement('div');
+  tierEl.style.cssText='font-size:11px;color:var(--t3);margin-bottom:12px';
+  tierEl.textContent=tierNames[b.tier]||'';
+  var descEl=document.createElement('div');
+  if(isEarned){
+    descEl.style.cssText='font-size:13px;color:var(--t2);line-height:1.7;text-align:left;'
+      +'background:var(--acbg);border-radius:10px;padding:12px 14px';
+    descEl.textContent=b.hint?'達成条件: '+b.hint:'（達成条件は秘密）';
+  } else {
+    descEl.style.cssText='font-size:13px;color:var(--t3)';
+    descEl.textContent=(b.tier===0)?'???':(b.hint?'達成条件: '+b.hint:'条件を満たすと解除されます');
+  }
+  center.appendChild(iconEl);center.appendChild(nameEl);
+  center.appendChild(tierEl);center.appendChild(descEl);
+  if(isEarned&&dates[id]){
+    var dateEl=document.createElement('div');
+    dateEl.style.cssText='margin-top:10px;font-size:11px;color:var(--t3)';
+    dateEl.textContent='解除日: '+dates[id];
+    center.appendChild(dateEl);
+  }
+  var closeBtn=document.createElement('button');
+  closeBtn.className='btn bs';
+  closeBtn.style.cssText='width:100%;justify-content:center;margin-top:16px';
+  closeBtn.textContent='閉じる';
+  closeBtn.onclick=function(){overlay.remove();};
+  box.appendChild(center);box.appendChild(closeBtn);
+  overlay.appendChild(box);
+  overlay.addEventListener('click',function(e){if(e.target===overlay)overlay.remove();});
+  document.body.appendChild(overlay);
+}
+
+// §15b CHECK BADGES ─────────────────────────
+// 実績ページUI (pBadge/makeBadgeCard) + 判定ループ (checkBadges)
+// [event] checkBadges
+function checkBadges(){
+  var newBadge=false;
+  S.earnedDates=S.earnedDates||{};
+  BADGE_DEFS.forEach(function(b){
+    if(!S.earnedBadges.includes(b.id)&&b.check()){
+      S.earnedBadges.push(b.id);
+      S.earnedDates[b.id]=new Date().toISOString().slice(0,10);
+      newBadge=true;
+      setTimeout(function(){toast('実績解除「'+b.name+'」');},500);
+    }
+  });
+  if(newBadge)saveS();
+}
+
+
+// [render] pCfg
+function pCfg(){
+  const subjH=(S.subjects||[]).map((s,i)=>`<div class="subr"><div style="display:flex;align-items:center;gap:8px"><div style="width:10px;height:10px;border-radius:50%;background:${scolor(s)}"></div>${s}</div>${i>=DSUBJ.length?`<button class="btn bd sm ic" onclick="delSubj(${i})" style="padding:4px 8px;font-size:11px">✕</button>`:''}</div>`).join('');
+  const storageKB=Math.round(JSON.stringify(S).length/1024);
+
+  const tabsH=`<div class="ttabs" style="margin-bottom:16px">
+    <div class="ttab${cfgTab==='settings'?' on':''}" onclick="cfgTab='settings';go('cfg')">設定</div>
+    <div class="ttab${cfgTab==='info'?' on':''}" onclick="cfgTab='info';go('cfg')">情報</div>
+  </div>`;
+
+  if(cfgTab==='info'){
+    return pageHeader('◉ 設定',`v${APP_VERSION}`)
+      + tabsH
+      + pCfgInfo();
+  }
+
+  return pageHeader('◉ 設定',`v${APP_VERSION}`)
++tabsH
++`<div class="card"><div class="sect">背景画像</div>
+<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+<button class="btn bp sm" onclick="document.getElementById('bgf').click()">写真を選ぶ</button>
+<button class="btn bs sm" onclick="clearBg()">✕ 消す</button>
+<input type="file" id="bgf" accept="image/*" style="display:none" onchange="loadBg(event)"></div>
+<div style="font-size:11px;color:var(--t3);margin-top:7px">${S.settings?.bg?'背景画像: 設定済み':'背景なし'}</div></div>
+<div class="card"><div class="sect">教科管理</div><div>${subjH}</div><button class="btn bs sm" onclick="openM('msubj')" style="margin-top:10px">＋ 教科を追加</button></div>
+<div class="card"><div class="sect">データ管理 (${storageKB} KB使用中)</div>
+<p style="font-size:12px;color:var(--t2);margin-bottom:10px">定期的にエクスポートしてiCloud・LINE等に保存することでiPhone↔Windows間で同期できます</p>
+<div style="display:flex;gap:8px;flex-wrap:wrap">
+<button class="btn bp sm" onclick="exportD()">エクスポート</button>
+<button class="btn bs sm" onclick="document.getElementById('impf').click()">インポート</button>
+<input type="file" id="impf" accept=".json" style="display:none" onchange="importD(event)"></div>
+<div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--br)">
+<div style="font-size:11px;font-weight:700;color:var(--bad);margin-bottom:8px">⚠ 危険ゾーン</div>
+<button class="btn bd" onclick="resetAllData()" style="width:100%;justify-content:center">全データをリセット（取り消し不可）</button>
+</div></div>
+<div class="card"><div class="sect">アップデート</div>
+<div style="display:flex;align-items:center;justify-content:space-between">
+<div>
+<div style="font-size:12px;font-weight:700;color:var(--t1)">現在のバージョン</div>
+<div style="font-size:11px;color:var(--t3);margin-top:2px">v${APP_VERSION} — 起動時に自動チェック済み</div>
+</div>
+<button class="btn bp sm" onclick="location.reload(true)" style="flex-shrink:0">↺ 強制更新</button>
+</div></div>
+<div class="card"><div class="sect">💫 iPhoneでの使い方</div>
+<div style="font-size:12px;color:var(--t2);line-height:1.7">
+<b>初回インストール</b><br>
+1. GitHub PagesにこのHTMLをアップロード<br>
+2. iPhoneのSafariでURLを開く<br>
+3. 共有ボタン（□↑）→「ホーム画面に追加」<br>
+<br>
+<b>データはどうなる？</b><br>
+アップデートしてもデータはSafariのlocalStorageに<br>
+残り続けます。消えることはありません。<br>
+ただし<b>Safariのサイトデータを消去</b>すると消えるため、<br>
+定期的なエクスポートを推奨します。
+</div></div>`;
+}
+
+// [render] pCfg
+function pCfgInfo(){
+  var CHANGELOG=[
+  {ver:'4.2',date:'2026-03-22',label:'バグ修正',color:'var(--ac)',items:[
+    '実績の達成率バーをネタ実績を含む全件ベースで計算するよう修正しました',
+    '勉強記録を今日・一日前・今週・一週間前・今月・ひと月前・今年・一年前のみ表示するよう変更しました',
+  ]},
+  {ver:'4.1',date:'2025-03-21',label:'バグ修正',color:'var(--ac)',items:[
+    '軽微な不具合を修正しました（実績判定の呼び出し漏れ）',
+    'タスク完了・テスト記録・暗記カード回答後にも実績判定を追加しました',
+    'ネタ実績を解除後に達成条件を表示するよう変更しました',
+  ]},
+  {ver:'4.0',date:'2025-03-21',label:'メジャーアップデート',color:'var(--ok)',items:[
+    'スキル削除時に確認ダイアログを追加しました',
+    'タイマーに開始時刻の表示を追加しました',
+    'タイマーを仕様変更しました（アプリを閉じても停止しない・停止ボタン押下時刻との差で計測）',
+    'タイマーのカウント表示を廃止しました',
+    'カレンダーの日付セルに学習時間・負荷値・未完了タスク数を事前表示するよう変更しました',
+    'カレンダーの週間負荷トレンドを廃止しました（ホーム画面には継続表示）',
+    'テスト分析を仕様変更しました（全体グラフ廃止・種別ごとのトレンド表示）',
+    'テスト分析の折れ線グラフをタップで拡大表示できるよう変更しました',
+    '実績を全面刷新しました（Tier1〜最高難易度・ネタ実績）',
+    '実績のヒントを達成条件のみの表示に変更しました',
+  ]},
+  {ver:'3.2',date:'2025-03-21',label:'バグ修正',color:'var(--ac)',items:[
+    '軽微な不具合を複数修正しました',
+    '保守性を向上しました',
+  ]},
+  {ver:'3.1',date:'2025-03-21',label:'機能追加',color:'var(--ok)',items:[
+    '設定画面に情報タブを追加しました',
+    '起動時の自動バージョンチェック機能を追加しました',
+  ]},
+  {ver:'3.0',date:'2025-03-21',label:'メジャーアップデート',color:'var(--ok)',items:[
+    '勉強時間ページを追加しました',
+    'ホーム画面を刷新しました',
+    'タスク完了機能を追加しました',
+    '暗記カード学習中のタイマー計測を追加しました',
+  ]},
+  {ver:'2.5',date:'2025-03-20',label:'機能強化',color:'var(--warn)',items:[
+    'スキルツリーをフルスクリーンマップ形式に変更しました',
+    '教科別ドーナツ円グラフを追加しました',
+    '全データリセット確認ダイアログを追加しました',
+  ]},
+  {ver:'2.3',date:'2025-03-20',label:'機能追加',color:'var(--t2)',items:[
+    '実績システムを追加しました',
+    '成績ハブページを追加しました',
+  ]},
+  {ver:'1.0',date:'2025-03-19',label:'初回リリース',color:'var(--t3)',items:[
+    '初回リリースです',
+  ]},
+];
+
+  // アコーディオン：すべてデフォルト閉じ
+  var openVer=null;
+
+  var html='<div class="card" style="border-color:var(--ac);background:var(--acbg);margin-bottom:14px">'
+    +'<div style="display:flex;align-items:center;justify-content:space-between">'
+    +'<div><div style="font-size:18px;font-weight:800;color:var(--ac2)">💫 StratoNote</div>'
+    +'<div style="font-size:11px;color:var(--t3);margin-top:2px">受験学習管理システム</div></div>'
+    +'<div style="font-size:26px;font-weight:800;color:var(--ac2)">v'+APP_VERSION+'</div>'
+    +'</div></div>';
+
+  CHANGELOG.forEach(function(entry,idx){
+    var isOpen=(entry.ver===openVer);
+    var isCurrent=idx===0;
+    var bodyId='clf-'+entry.ver.replace(/\./g,'-');
+    html+='<div class="trnd" style="margin-bottom:8px;'+(isCurrent?'border-color:var(--ac)':'')+'">'
+      // ヘッダー（タップで開閉）
+      +'<div class="trnd-h" onclick="toggleTrnd(\''+bodyId+'\')" style="'+(isCurrent?'background:var(--acbg)':'')+'">'
+      +'<div style="flex:1;display:flex;align-items:center;gap:8px">'
+      +'<div style="font-size:15px;font-weight:800;color:'+entry.color+'">v'+entry.ver+'</div>'
+      +'<div class="bdg '+(isCurrent?'ba':'')+ '" style="font-size:10px;'+(isCurrent?'':'background:#f4f9fd;color:var(--t3)')+'">'+entry.label+'</div>'
+      +'</div>'
+      +'<div style="display:flex;align-items:center;gap:8px">'
+      +'<div style="font-size:10px;color:var(--t3)">'+entry.date+'</div>'
+      +'<span style="color:var(--t3);font-size:12px" id="'+bodyId+'-arrow">'+(isOpen?'▲':'▼')+'</span>'
+      +'</div>'
+      +'</div>'
+      // ボディ（詳細リスト）
+      +'<div class="trnd-b" id="'+bodyId+'" style="display:'+(isOpen?'block':'none')+';padding:12px 14px">'
+      +entry.items.map(function(item){
+        return'<div style="display:flex;gap:8px;margin-bottom:7px;align-items:flex-start">'
+          +'<div style="color:'+entry.color+';font-size:11px;flex-shrink:0;margin-top:2px">✦</div>'
+          +'<div style="font-size:12px;color:var(--t2);line-height:1.6">'+item+'</div>'
+          +'</div>';
+      }).join('')
+      +'</div>'
+      +'</div>';
+  });
+
+  return html;
+}
+// §16 OFFLINE / PWA ──────────────────────────
+// オフライン表示バナー制御
+window.addEventListener('offline',()=>document.getElementById('offbdg').style.display='block');
+window.addEventListener('online',()=>document.getElementById('offbdg').style.display='none');
+if(!navigator.onLine)document.getElementById('offbdg').style.display='block';
+
+// §16b AUTO UPDATE CHECK ────────────────────
+// 起動時にサーバー上のHTMLを取得し APP_VERSION を比較。
+// 新バージョンがあればバナーを表示してリロードを促す。
+// [event] checkForUpdate
+function checkForUpdate(){
+  // スタンドアロン（ホーム画面）またはオンライン時のみ実行
+  if(!navigator.onLine)return;
+  var url=location.href.split('?')[0]; // キャッシュバスター付き
+  var bustUrl=url+(url.indexOf('?')>=0?'&':'?')+'_cb='+Date.now();
+  fetch(bustUrl,{cache:'no-store',headers:{'pragma':'no-cache','cache-control':'no-cache'}})
+    .then(function(r){return r.text();})
+    .then(function(html){
+      var m=html.match(/APP_VERSION='([^']+)'/);
+      if(!m)return;
+      var remoteVer=m[1];
+      if(remoteVer!==APP_VERSION){
+        showUpdateBanner(remoteVer);
+      }
+    })
+    .catch(function(){/* ネットワークエラーは無視 */});
+}
+
+// [render] showUpdateBanner
+function showUpdateBanner(newVer){
+  var prev=document.getElementById('update-banner');if(prev)prev.remove();
+  var banner=document.createElement('div');
+  banner.id='update-banner';
+  banner.style.cssText='position:fixed;top:calc(var(--st) + 8px);left:50%;transform:translateX(-50%);'
+    +'z-index:3000;background:var(--ac2);color:#fff;padding:10px 16px;border-radius:12px;'
+    +'font-size:12px;font-weight:700;box-shadow:0 4px 16px rgba(0,0,0,.25);'
+    +'display:flex;align-items:center;gap:10px;max-width:calc(100vw - 32px);white-space:nowrap;';
+  var txt=document.createElement('span');
+  txt.textContent='✦ v'+newVer+' にアップデートがあります';
+  var btn=document.createElement('button');
+  btn.textContent='今すぐ適用';
+  btn.style.cssText='background:#fff;color:var(--ac2);border:none;border-radius:8px;padding:4px 10px;'
+    +'font-size:11px;font-weight:800;cursor:pointer;font-family:inherit;flex-shrink:0;';
+  btn.onclick=function(){location.reload(true);};
+  var closeBtn=document.createElement('button');
+  closeBtn.textContent='✕';
+  closeBtn.style.cssText='background:transparent;border:none;color:#fff;font-size:14px;cursor:pointer;'
+    +'padding:0 0 0 4px;opacity:.7;flex-shrink:0;';
+  closeBtn.onclick=function(){banner.remove();};
+  banner.appendChild(txt);banner.appendChild(btn);banner.appendChild(closeBtn);
+  document.body.appendChild(banner);
+  // 30秒後に自動消去
+  setTimeout(function(){if(banner.parentNode)banner.remove();},30000);
+}
+
+// §17 INIT ───────────────────────────────────
+// アプリ起動処理（データ読み込み・タイマー復元・定期チェック）
+// [event] init
+function init(){
+  lastMob = isMob(); // §2 STATE 参照
+  loadS();
+  if(!tSubj)tSubj=(S.subjects||[])[0]||'';
+  if(!curSKS)curSKS=SK_SUBJ[0];
+  if(S.settings?.bg)applyBg(S.settings.bg);
+  go('home');
+  const sf=document.getElementById('sbd-str');if(sf)sf.textContent='✦ '+(S.streak||0)+'日連続';
+  updTime();
+  setInterval(saveS,30000);
+  setInterval(checkBadges,60000);
+  // Restore timer that was running before app closed
+  setTimeout(restoreTimer,300);
+  // アップデートチェック（起動5秒後）
+  setTimeout(checkForUpdate,5000);
+  if(/iPad|iPhone|iPod/.test(navigator.userAgent)&&!window.navigator.standalone){
+    setTimeout(()=>toast('💫 Safariの「共有」→「ホーム画面に追加」でアプリとして使えます'),6000);
+  }
+}
+init();
+// §18 SETTINGS HELPERS ───────────────────────
+// 設定画面の操作（教科追加/削除・背景画像・エクスポート/インポート）
+// [event] saveSubj
+function saveSubj() {
+  const n = document.getElementById('subjn').value.trim();
+  if (!n) { toast('教科名を入力'); return; }
+  if ((S.subjects || []).includes(n)) { toast('すでに存在します'); return; }
+  S.subjects.push(n);
+  S.skills[n] = [];
+  saveS();
+  closeM('msubj');
+  toast('教科追加');
+  go('cfg');
+  document.getElementById('subjn').value = '';
+}
+// [event] delSubj
+function delSubj(i) {
+  if (!confirm('削除しますか？')) return;
+  S.subjects.splice(i, 1);
+  saveS();
+  go('cfg');
+  toast('削除しました');
+}
+// [event] loadBg
+function loadBg(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{const img=new Image();img.onload=function(){const MAX=1200;let w=img.width,h=img.height;if(w>MAX||h>MAX){const sc=Math.min(MAX/w,MAX/h);w=Math.round(w*sc);h=Math.round(h*sc);}const cv=document.createElement('canvas');cv.width=w;cv.height=h;cv.getContext('2d').drawImage(img,0,0,w,h);const compressed=cv.toDataURL('image/jpeg',0.72);S.settings=S.settings||{};S.settings.bg=compressed;applyBg(compressed);saveS();const kb=Math.round(compressed.length*0.75/1024);toast('背景を設定 ('+kb+'KB)');go('cfg');};img.src=ev.target.result;};r.readAsDataURL(f);}
+// [event] clearBg
+function clearBg() {
+  S.settings = S.settings || {};
+  S.settings.bg = '';
+  applyBg('');
+  saveS();
+  toast('背景を解除');
+  go('cfg');
+}
+// [render] applyBg
+function applyBg(u) {
+  const el = document.getElementById('bgimg');
+  if (u) {
+    el.style.backgroundImage = `url('${u}')`;
+    el.style.display = 'block';
+  } else {
+    el.style.backgroundImage = '';
+    el.style.display = 'none';
+  }
+}
+// [pure] sanitizeStr
+function sanitizeStr(s) {
+  return String(s ?? '')
+    .replace(/&/g,  '&amp;')
+    .replace(/</g,  '&lt;')
+    .replace(/>/g,  '&gt;')
+    .replace(/"/g, '&quot;');
+}
+// [event] exportD
+function exportD() {
+  const b = new Blob([JSON.stringify(S, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(b);
+  a.download = 'stratonote_' + today() + '.json';
+  a.click();
+  toast('エクスポート完了');
+}
+// [event] importD
+function importD(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{try{const parsed=JSON.parse(ev.target.result);if(typeof parsed!=='object'||Array.isArray(parsed)){toast('エラー：データ形式が不正です');return;}['events','sessions','decks','rounds','subjects','earnedBadges'].forEach(k=>{if(parsed[k]!==undefined&&!Array.isArray(parsed[k]))delete parsed[k];});if(Array.isArray(parsed.events)){parsed.events=parsed.events.map(ev=>({...ev,title:sanitizeStr(ev.title||''),subj:sanitizeStr(ev.subj||'')}));}if(Array.isArray(parsed.decks)){parsed.decks=parsed.decks.map(function(dk){return Object.assign({},dk,{name:sanitizeStr(dk.name||''),cards:Array.isArray(dk.cards)?dk.cards.map(function(c){return Object.assign({},c,{q:sanitizeStr(c.q||''),a:sanitizeStr(c.a||'')});}):[]}); });}if(Array.isArray(parsed.rounds)){parsed.rounds=parsed.rounds.map(function(r){return Object.assign({},r,{name:sanitizeStr(r.name||'')});});}S=Object.assign({},S,parsed);DSUBJ.forEach(s=>{if(!S.skills[s])S.skills[s]=[];});(S.subjects||[]).forEach(s=>{if(!S.skills[s])S.skills[s]=[];});S.earnedBadges=S.earnedBadges||[];S.earnedDates=S.earnedDates||{};saveS();toast('インポート完了');go('home');}catch{toast('エラー：ファイルが無効です');}};r.readAsText(f);}
+
+// [event] resetAllData
+function resetAllData(){
+  var prev=document.getElementById('reset-confirm-overlay');if(prev)prev.remove();
+  var overlay=document.createElement('div');
+  overlay.id='reset-confirm-overlay';
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:1200;display:flex;align-items:center;justify-content:center;padding:20px';
+  var box=document.createElement('div');
+  box.style.cssText='background:var(--card);border-radius:14px;padding:24px 20px;width:100%;max-width:380px;border-top:3px solid var(--bad)';
+  var title=document.createElement('div');
+  title.style.cssText='font-size:18px;font-weight:800;color:var(--bad);margin-bottom:8px';
+  title.textContent='全データをリセット';
+  var msg=document.createElement('div');
+  msg.style.cssText='font-size:13px;color:var(--t2);line-height:1.7;margin-bottom:20px';
+  msg.innerHTML='学習記録、スキルツリー、暗記カード、テスト結果、実績の<b>すべて</b>が消えます。この操作は取り消せません。<br><br><span style="color:var(--bad);font-weight:700">本当に全データを削除しますか？</span>';
+  var btns=document.createElement('div');
+  btns.style.cssText='display:flex;gap:10px';
+  var cancelBtn=document.createElement('button');
+  cancelBtn.className='btn bs';cancelBtn.style.cssText='flex:1;justify-content:center';
+  cancelBtn.textContent='キャンセル';
+  cancelBtn.onclick=function(){overlay.remove();};
+  var execBtn=document.createElement('button');
+  execBtn.className='btn bd';execBtn.style.cssText='flex:1;justify-content:center;background:var(--bad);color:#fff';
+  execBtn.textContent='削除する';
+  execBtn.onclick=function(){overlay.remove();_doResetAllData();};
+  btns.appendChild(cancelBtn);btns.appendChild(execBtn);
+  box.appendChild(title);box.appendChild(msg);box.appendChild(btns);
+  overlay.appendChild(box);
+  overlay.addEventListener('click',function(e){if(e.target===overlay)overlay.remove();});
+  document.body.appendChild(overlay);
+}
+function _doResetAllData(){
+  try{localStorage.removeItem(SKEY);}catch(e){}
+  try{localStorage.removeItem(CFG.TIMER_KEY);}catch(e){}
+  S={subjects:[...DSUBJ],events:[],sessions:[],decks:[],skills:{},rounds:[],settings:{bg:''},todayMs:0,todayMs_base:0,weekMs:[0,0,0,0,0,0,0],streak:0,lastDate:'',earnedBadges:[],earnedDates:{},_didReset:true};
+  DSUBJ.forEach(function(s){S.skills[s]=[];});
+  tRun=false;tMs=0;tStart=0;clearInterval(tIv);tIv=null;curDk=-1;fcQueue=[];fcQIdx=0;
+  saveS();toast('全データをリセットしました');go('home');
+}
+
+
+
+
+</script>
+</body>
+</html>
